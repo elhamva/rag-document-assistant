@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import json
+import os
+from dataclasses import dataclass
 from html import escape
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 import streamlit as st
 
@@ -10,7 +15,15 @@ import streamlit as st
 DocumentRecord = dict[str, Any]
 SourceRecord = dict[str, Any]
 
+BACKEND_URL_ENV_VAR = "DOCUMENT_CHAT_API_URL"
+DEFAULT_BACKEND_URL = "http://localhost:8000"
 SUPPORTED_EXTENSIONS = {"pdf", "txt"}
+
+
+@dataclass(frozen=True)
+class BackendStatus:
+    available: bool
+    detail: str
 
 
 def initialize_state() -> None:
@@ -25,6 +38,63 @@ def initialize_state() -> None:
 
     if "documents_processed" not in st.session_state:
         st.session_state.documents_processed = bool(st.session_state.uploaded_documents)
+
+
+def get_backend_base_url() -> str:
+    return os.getenv(BACKEND_URL_ENV_VAR, DEFAULT_BACKEND_URL).rstrip("/")
+
+
+def check_backend_health(
+    base_url: str | None = None,
+    timeout_seconds: float = 2.0,
+) -> BackendStatus:
+    api_base_url = (base_url or get_backend_base_url()).rstrip("/")
+    request = Request(
+        f"{api_base_url}/health",
+        headers={"Accept": "application/json"},
+    )
+
+    try:
+        with urlopen(request, timeout=timeout_seconds) as response:
+            status_code = getattr(response, "status", None)
+            if status_code is None:
+                status_code = response.getcode()
+
+            if status_code != 200:
+                return BackendStatus(
+                    available=False,
+                    detail=f"Health check returned HTTP {status_code}.",
+                )
+
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        return BackendStatus(
+            available=False,
+            detail=f"Health check returned HTTP {exc.code}.",
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        return BackendStatus(
+            available=False,
+            detail=f"Health check failed: {exc}.",
+        )
+
+    if not isinstance(payload, dict):
+        return BackendStatus(
+            available=False,
+            detail="Health check response was invalid.",
+        )
+
+    service = payload.get("service")
+    if payload.get("status") == "ok" and isinstance(service, str) and service:
+        return BackendStatus(
+            available=True,
+            detail=f"Connected to {service}.",
+        )
+
+    return BackendStatus(
+        available=False,
+        detail="Health check response was invalid.",
+    )
 
 
 def render_documents_tab() -> None:
@@ -50,8 +120,11 @@ def render_documents_tab() -> None:
         )
 
     if process_clicked:
-        simulate_document_processing()
-        st.toast("Documents marked ready in mock mode.")
+        backend_status = process_documents_with_backend_health()
+        if backend_status.available:
+            st.toast("Documents marked ready in mock mode.")
+        else:
+            st.error(backend_status.detail)
 
     render_processing_status()
 
@@ -115,6 +188,17 @@ def simulate_document_processing() -> None:
     st.session_state.uploaded_documents = processed_documents
     st.session_state.documents_processed = True
     update_ready_document_count()
+
+
+def process_documents_with_backend_health(
+    health_checker: Callable[[], BackendStatus] = check_backend_health,
+) -> BackendStatus:
+    backend_status = health_checker()
+
+    if backend_status.available:
+        simulate_document_processing()
+
+    return backend_status
 
 
 def render_processing_status() -> None:
