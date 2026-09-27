@@ -1,0 +1,11 @@
+.git
+.idea
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+.DS_Store
+.env
+.venv
+venv
+docs
