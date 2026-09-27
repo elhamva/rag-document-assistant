@@ -1,0 +1,281 @@
+<mxfile host="app.diagrams.net" agent="Claude">
+  <diagram id="document-chat-v1-v2" name="Architecture ① + ②">
+    <mxGraphModel dx="2858" dy="972" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1420" pageHeight="2620" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=26;fontStyle=1" value="Document Chat — RAG architecture" vertex="1">
+          <mxGeometry height="40" width="720" x="-70" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="hdrA" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;whiteSpace=wrap" value="&lt;b&gt;1. Baseline (MVP) — build first&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 13px; color: rgb(85, 85, 85);&quot;&gt;Dense retrieval only. Hybrid search and reranking come later.&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="1100" x="10" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="a_docker" parent="1" style="rounded=1;arcSize=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#666666;" value="" vertex="1">
+          <mxGeometry height="950" width="1000" x="170" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="a_user" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1" value="User" vertex="1">
+          <mxGeometry height="90" width="40" x="80" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="a_frontend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14" value="&lt;b&gt;Streamlit frontend&lt;/b&gt;&lt;br&gt;&lt;br&gt;Upload documents&lt;br&gt;Chat history&lt;br&gt;Source panels" vertex="1">
+          <mxGeometry height="150" width="170" x="200" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="a_backendBox" parent="1" style="swimlane;html=1;startSize=32;rounded=1;arcSize=2;fillColor=#fff2cc;swimlaneFillColor=#fffcf0;strokeColor=#d6b656;fontSize=16;fontStyle=1" value="Backend (FastAPI)" vertex="1">
+          <mxGeometry height="720" width="740" x="410" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="a_api" parent="a_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13" value="&lt;b&gt;API layer&lt;/b&gt;&amp;nbsp; POST /documents · POST /chat&lt;br&gt;Validation · typed schemas · errors" vertex="1">
+          <mxGeometry height="70" width="400" x="100" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="a_laneIndex" parent="a_backendBox" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=2;fontColor=#666666" value="Indexing path" vertex="1">
+          <mxGeometry height="20" width="100" x="150" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="a_laneQuery" parent="a_backendBox" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=2;fontColor=#666666" value="Query path" vertex="1">
+          <mxGeometry height="20" width="100" x="450" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="a_ingest" parent="a_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13" value="&lt;b&gt;Ingestion service&lt;/b&gt;&lt;br&gt;Parse · normalize · dedupe by hash" vertex="1">
+          <mxGeometry height="75" width="220" x="30" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="a_chunk" parent="a_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13" value="&lt;b&gt;Chunking service&lt;/b&gt;&lt;br&gt;Page-aware · overlap · metadata" vertex="1">
+          <mxGeometry height="75" width="220" x="30" y="312" as="geometry" />
+        </mxCell>
+        <mxCell id="a_indexer" parent="a_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13" value="&lt;b&gt;Indexer&lt;/b&gt;&lt;br&gt;Embed chunks · upsert points" vertex="1">
+          <mxGeometry height="75" width="220" x="30" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="a_orchestrate" parent="a_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13" value="&lt;b&gt;RAG orchestrator&lt;/b&gt;&lt;br&gt;Grounding prompt · citations · refusal" vertex="1">
+          <mxGeometry height="75" width="240" x="380" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="a_retrieve" parent="a_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13" value="&lt;b&gt;Retrieval service&lt;/b&gt;&lt;br&gt;Dense retrieval · top 5" vertex="1">
+          <mxGeometry height="75" width="170" x="290" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="a_portsGroup" parent="a_backendBox" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;fillColor=#f5f9ff;strokeColor=#6c8ebf;fontSize=12;fontStyle=2;fontColor=#4a6a9c;align=right;verticalAlign=bottom;spacingRight=10;spacingBottom=4" value="Provider interfaces (ports/adapters)" vertex="1">
+          <mxGeometry height="125" width="680" x="30" y="565" as="geometry" />
+        </mxCell>
+        <mxCell id="a_embedClient" parent="a_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13" value="&lt;b&gt;EmbeddingClient&lt;/b&gt;&lt;br&gt;Dense (API)" vertex="1">
+          <mxGeometry height="60" width="170" x="55" y="595" as="geometry" />
+        </mxCell>
+        <mxCell id="a_vectorStore" parent="a_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13" value="&lt;b&gt;VectorStore&lt;/b&gt;&lt;br&gt;Qdrant adapter" vertex="1">
+          <mxGeometry height="60" width="170" x="300" y="595" as="geometry" />
+        </mxCell>
+        <mxCell id="a_chatModel" parent="a_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13" value="&lt;b&gt;ChatModel&lt;/b&gt;&lt;br&gt;LLM adapter" vertex="1">
+          <mxGeometry height="60" width="170" x="520" y="595" as="geometry" />
+        </mxCell>
+        <mxCell id="a_e3" edge="1" parent="a_backendBox" source="a_api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;exitX=0.1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a_ingest" value="upload">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-32" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_e4" edge="1" parent="a_backendBox" source="a_ingest" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0" target="a_chunk" value="text + page metadata">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a_e5" edge="1" parent="a_backendBox" source="a_chunk" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0" target="a_indexer" value="chunks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a_e6" edge="1" parent="a_backendBox" source="a_indexer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="a_embedClient" value="1. chunks ⇄ vectors">
+          <mxGeometry relative="1" x="-0.35" as="geometry" />
+        </mxCell>
+        <mxCell id="a_e7" edge="1" parent="a_backendBox" source="a_indexer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.2;entryY=0;entryDx=0;entryDy=0" target="a_vectorStore" value="2. vectors + metadata → upsert">
+          <mxGeometry relative="1" x="0.45" as="geometry">
+            <Array as="points">
+              <mxPoint x="334" y="478" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_e8" edge="1" parent="a_backendBox" source="a_api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;exitX=0.85;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0" target="a_orchestrate" value="question + history&lt;br&gt;⇄ answer + citations">
+          <mxGeometry relative="1" x="0.0136" y="-68" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_e9" edge="1" parent="a_backendBox" source="a_orchestrate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=0.1;exitY=1;exitDx=0;exitDy=0;entryX=0.67;entryY=0;entryDx=0;entryDy=0" target="a_retrieve" value="query ⇄ top 5 chunks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a_e12" edge="1" parent="a_backendBox" source="a_retrieve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a_embedClient" value="question ⇄ query vectors">
+          <mxGeometry relative="1" x="-0.55" as="geometry">
+            <Array as="points">
+              <mxPoint x="270" y="357" />
+              <mxPoint x="270" y="625" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_e13" edge="1" parent="a_backendBox" source="a_retrieve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=0.76;exitY=1;exitDx=0;exitDy=0;entryX=0.7;entryY=0;entryDx=0;entryDy=0" target="a_vectorStore" value="vector search">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a_e14" edge="1" parent="a_backendBox" source="a_orchestrate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="a_chatModel" value="generate">
+          <mxGeometry relative="1" x="0.35" as="geometry">
+            <Array as="points">
+              <mxPoint x="722" y="222" />
+              <mxPoint x="722" y="625" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_qdrant" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13" value="&lt;b&gt;Qdrant&lt;/b&gt;&lt;br&gt;Dense vectors&lt;br&gt;Chunk metadata" vertex="1">
+          <mxGeometry height="120" width="160" x="715" y="990" as="geometry" />
+        </mxCell>
+        <mxCell id="a_model" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14" value="&lt;b&gt;Model provider&lt;/b&gt; (external API, key in .env)&lt;br&gt;Embeddings API · chat LLM API" vertex="1">
+          <mxGeometry height="80" width="660" x="470" y="1190" as="geometry" />
+        </mxCell>
+        <mxCell id="a_e1" edge="1" parent="1" source="a_user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12" target="a_frontend" value="browser">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="160" y="600" />
+              <mxPoint x="160" y="575.06" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_e2" edge="1" parent="1" source="a_frontend" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="a_api" value="REST (JSON, multipart)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="285" y="325" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a_e15" edge="1" parent="1" source="a_vectorStore" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0" target="a_qdrant" value="upsert / vector search">
+          <mxGeometry relative="1" x="0.3" as="geometry" />
+        </mxCell>
+        <mxCell id="a_e16" edge="1" parent="1" source="a_embedClient" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.12;entryY=0;entryDx=0;entryDy=0" target="a_model" value="dense embeddings">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a_e17" edge="1" parent="1" source="a_chatModel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.826;entryY=0;entryDx=0;entryDy=0" target="a_model" value="chat completion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sep" parent="1" style="line;strokeWidth=2;html=1;strokeColor=#999999;dashed=1" value="" vertex="1">
+          <mxGeometry height="10" width="1340" x="40" y="1295" as="geometry" />
+        </mxCell>
+        <mxCell id="hdrB" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;whiteSpace=wrap" value="&lt;b&gt;2. Target architecture — add after the baseline works&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;font-size: 13px; color: rgb(85, 85, 85);&quot;&gt;Add and evaluate each retrieval improvement separately: hybrid search first, then reranking.&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="1100" x="60" y="1330" as="geometry" />
+        </mxCell>
+        <mxCell id="b_docker" parent="1" style="rounded=1;arcSize=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#666666;" value="" vertex="1">
+          <mxGeometry height="950" width="1000" x="170" y="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="b_user" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1" value="User" vertex="1">
+          <mxGeometry height="90" width="40" x="80" y="1790" as="geometry" />
+        </mxCell>
+        <mxCell id="b_frontend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14" value="&lt;b&gt;Streamlit frontend&lt;/b&gt;&lt;br&gt;&lt;br&gt;Upload documents&lt;br&gt;Chat history&lt;br&gt;Source panels" vertex="1">
+          <mxGeometry height="150" width="170" x="200" y="1760" as="geometry" />
+        </mxCell>
+        <mxCell id="b_backendBox" parent="1" style="swimlane;html=1;startSize=32;rounded=1;arcSize=2;fillColor=#fff2cc;swimlaneFillColor=#fffcf0;strokeColor=#d6b656;fontSize=16;fontStyle=1" value="Backend (FastAPI)" vertex="1">
+          <mxGeometry height="720" width="740" x="410" y="1500" as="geometry" />
+        </mxCell>
+        <mxCell id="b_api" parent="b_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13" value="&lt;b&gt;API layer&lt;/b&gt;&amp;nbsp; POST /documents · POST /chat&lt;br&gt;Validation · typed schemas · errors" vertex="1">
+          <mxGeometry height="70" width="400" x="100" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="b_laneIndex" parent="b_backendBox" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=2;fontColor=#666666" value="Indexing path" vertex="1">
+          <mxGeometry height="20" width="100" x="150" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="b_laneQuery" parent="b_backendBox" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontStyle=2;fontColor=#666666" value="Query path" vertex="1">
+          <mxGeometry height="20" width="100" x="450" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="b_ingest" parent="b_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13" value="&lt;b&gt;Ingestion service&lt;/b&gt;&lt;br&gt;Parse · normalize · dedupe by hash" vertex="1">
+          <mxGeometry height="75" width="220" x="30" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="b_chunk" parent="b_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13" value="&lt;b&gt;Chunking service&lt;/b&gt;&lt;br&gt;Page-aware · overlap · metadata" vertex="1">
+          <mxGeometry height="75" width="220" x="30" y="312" as="geometry" />
+        </mxCell>
+        <mxCell id="b_indexer" parent="b_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13" value="&lt;b&gt;Indexer&lt;/b&gt;&lt;br&gt;Embed chunks · upsert points" vertex="1">
+          <mxGeometry height="75" width="220" x="30" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="b_orchestrate" parent="b_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13" value="&lt;b&gt;RAG orchestrator&lt;/b&gt;&lt;br&gt;Grounding prompt · citations · refusal" vertex="1">
+          <mxGeometry height="75" width="240" x="380" y="185" as="geometry" />
+        </mxCell>
+        <mxCell id="b_retrieve" parent="b_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;strokeColor=#2e7d32;strokeWidth=3" value="&lt;b&gt;Retrieval service&lt;/b&gt;&lt;br&gt;Dense + sparse retrieval · RRF · dedupe" vertex="1">
+          <mxGeometry height="75" width="170" x="290" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="b_rerank" parent="b_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;strokeColor=#2e7d32;strokeWidth=3" value="&lt;b&gt;Reranker&lt;/b&gt;&lt;br&gt;Cross-encoder · scores (question, chunk) pairs" vertex="1">
+          <mxGeometry height="75" width="170" x="530" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="b_portsGroup" parent="b_backendBox" style="rounded=1;arcSize=4;whiteSpace=wrap;html=1;dashed=1;fillColor=#f5f9ff;strokeColor=#6c8ebf;fontSize=12;fontStyle=2;fontColor=#4a6a9c;align=right;verticalAlign=bottom;spacingRight=10;spacingBottom=4" value="Provider interfaces (ports/adapters)" vertex="1">
+          <mxGeometry height="125" width="680" x="30" y="565" as="geometry" />
+        </mxCell>
+        <mxCell id="b_embedClient" parent="b_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;strokeColor=#2e7d32;strokeWidth=3" value="&lt;b&gt;EmbeddingClient&lt;/b&gt;&lt;br&gt;Dense (API) · sparse (local)" vertex="1">
+          <mxGeometry height="60" width="170" x="55" y="595" as="geometry" />
+        </mxCell>
+        <mxCell id="b_vectorStore" parent="b_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13" value="&lt;b&gt;VectorStore&lt;/b&gt;&lt;br&gt;Qdrant adapter" vertex="1">
+          <mxGeometry height="60" width="170" x="300" y="595" as="geometry" />
+        </mxCell>
+        <mxCell id="b_chatModel" parent="b_backendBox" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13" value="&lt;b&gt;ChatModel&lt;/b&gt;&lt;br&gt;LLM adapter" vertex="1">
+          <mxGeometry height="60" width="170" x="520" y="595" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e3" edge="1" parent="b_backendBox" source="b_api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;exitX=0.1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="b_ingest" value="upload">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-32" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="b_e4" edge="1" parent="b_backendBox" source="b_ingest" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0" target="b_chunk" value="text + page metadata">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e5" edge="1" parent="b_backendBox" source="b_chunk" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0" target="b_indexer" value="chunks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e6" edge="1" parent="b_backendBox" source="b_indexer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0" target="b_embedClient" value="1. chunks ⇄ vectors">
+          <mxGeometry relative="1" x="-0.35" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e7" edge="1" parent="b_backendBox" source="b_indexer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.2;entryY=0;entryDx=0;entryDy=0" target="b_vectorStore" value="2. vectors + metadata → upsert">
+          <mxGeometry relative="1" x="0.45" as="geometry">
+            <Array as="points">
+              <mxPoint x="334" y="478" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="b_e8" edge="1" parent="b_backendBox" source="b_api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;exitX=0.85;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0" target="b_orchestrate" value="question + history&lt;br&gt;⇄ answer + citations">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-68" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="b_e9" edge="1" parent="b_backendBox" source="b_orchestrate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=0.1;exitY=1;exitDx=0;exitDy=0;entryX=0.67;entryY=0;entryDx=0;entryDy=0" target="b_retrieve" value="query">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e10" edge="1" parent="b_backendBox" source="b_retrieve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#fffcf0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="b_rerank" value="top 20&lt;br&gt;candidates">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e11" edge="1" parent="b_backendBox" source="b_rerank" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=0.4;exitY=0;exitDx=0;exitDy=0;entryX=0.908;entryY=1;entryDx=0;entryDy=0" target="b_orchestrate" value="top 5 chunks">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e12" edge="1" parent="b_backendBox" source="b_retrieve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="b_embedClient" value="question ⇄ query vectors">
+          <mxGeometry relative="1" x="-0.55" as="geometry">
+            <Array as="points">
+              <mxPoint x="270" y="357" />
+              <mxPoint x="270" y="625" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="b_e13" edge="1" parent="b_backendBox" source="b_retrieve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=0.76;exitY=1;exitDx=0;exitDy=0;entryX=0.7;entryY=0;entryDx=0;entryDy=0" target="b_vectorStore" value="hybrid search">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e14" edge="1" parent="b_backendBox" source="b_orchestrate" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#fffcf0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0" target="b_chatModel" value="generate">
+          <mxGeometry relative="1" x="0.35" as="geometry">
+            <Array as="points">
+              <mxPoint x="722" y="222" />
+              <mxPoint x="722" y="625" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="b_qdrant" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;strokeColor=#2e7d32;strokeWidth=3" value="&lt;b&gt;Qdrant&lt;/b&gt;&lt;br&gt;Dense + sparse vectors&lt;br&gt;Chunk metadata" vertex="1">
+          <mxGeometry height="120" width="160" x="715" y="2250" as="geometry" />
+        </mxCell>
+        <mxCell id="b_model" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14" value="&lt;b&gt;Model provider&lt;/b&gt; (external API, key in .env)&lt;br&gt;Embeddings API · chat LLM API" vertex="1">
+          <mxGeometry height="80" width="660" x="470" y="2450" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e1" edge="1" parent="1" source="b_user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12" target="b_frontend" value="browser">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e2" edge="1" parent="1" source="b_frontend" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0" target="b_api" value="REST (JSON, multipart)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="285" y="1585" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="b_e15" edge="1" parent="1" source="b_vectorStore" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0" target="b_qdrant" value="upsert / hybrid query (RRF)">
+          <mxGeometry relative="1" x="0.3" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e16" edge="1" parent="1" source="b_embedClient" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.12;entryY=0;entryDx=0;entryDy=0" target="b_model" value="dense embeddings">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="b_e17" edge="1" parent="1" source="b_chatModel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.826;entryY=0;entryDx=0;entryDy=0" target="b_model" value="chat completion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="evalBox" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#f1f8e9;strokeColor=#2e7d32;strokeWidth=2;fontSize=13" value="&lt;b&gt;Retrieval evaluation (planned)&lt;/b&gt;&lt;br&gt;Offline script · ~20 Q/A pairs&lt;br&gt;Recall@5 and MRR: dense vs. hybrid vs. hybrid + reranker" vertex="1">
+          <mxGeometry height="100" width="210" x="185" y="1990" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
