@@ -80,6 +80,8 @@ def test_chat_returns_llm_answer_and_real_sources(monkeypatch) -> None:
     assert "Question: citation metadata" in prompts[0]
     assert chunks[0].text in prompts[0]
     assert "Answer using only the supplied context." in prompts[0]
+    assert 'Do not say "According to Source X" or mention numbered sources.' in prompts[0]
+    assert "The UI displays sources separately." in prompts[0]
 
 
 def test_chat_uses_history_for_follow_up_retrieval(monkeypatch) -> None:

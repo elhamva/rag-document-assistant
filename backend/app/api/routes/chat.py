@@ -119,7 +119,11 @@ def build_prompt(
     return (
         "You are a document question-answering assistant.\n"
         "Answer using only the supplied context.\n"
+        "Answer directly and concisely.\n"
         "Use the recent conversation only to understand follow-up questions.\n"
+        "Do not say \"According to Source X\" or mention numbered sources.\n"
+        "Do not invent citation numbers or reference source indices in the answer.\n"
+        "The UI displays sources separately.\n"
         "If the context does not contain enough information, say exactly: "
         f"{NO_CONTEXT_ANSWER}\n"
         "Do not use outside knowledge.\n\n"

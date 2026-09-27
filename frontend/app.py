@@ -415,7 +415,6 @@ def render_sources(sources: list[SourceRecord]) -> None:
                         <span>{escape(page_label)}</span>
                     </div>
                     <div class="source-snippet">{escape(source["snippet"])}</div>
-                    <div class="source-score">Retrieval score: {source["score"]:.2f}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,

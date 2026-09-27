@@ -34,6 +34,14 @@ class FakeUploadedFile:
         return self._content
 
 
+class FakeExpander:
+    def __enter__(self) -> "FakeExpander":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+
 def test_check_backend_health_calls_existing_health_endpoint(monkeypatch) -> None:
     requests = []
 
@@ -228,6 +236,55 @@ def test_send_chat_to_backend_posts_question(monkeypatch) -> None:
             }
         ],
     )
+
+
+def test_render_sources_keeps_score_hidden_and_preserves_received_order(monkeypatch) -> None:
+    rendered = []
+
+    monkeypatch.setattr(frontend_app.st, "expander", lambda *_args, **_kwargs: FakeExpander())
+    monkeypatch.setattr(
+        frontend_app.st,
+        "markdown",
+        lambda body, **_kwargs: rendered.append(body),
+    )
+
+    frontend_app.render_sources(
+        [
+            {
+                "chunk_id": "chunk-1",
+                "filename": "first.txt",
+                "page": None,
+                "snippet": "first final source",
+                "score": 0.02,
+            },
+            {
+                "chunk_id": "chunk-2",
+                "filename": "second.txt",
+                "page": 3,
+                "snippet": "second final source",
+                "score": 9.5,
+            },
+            {
+                "chunk_id": "chunk-3",
+                "filename": "third.txt",
+                "page": None,
+                "snippet": "third final source",
+                "score": 1.0,
+            },
+        ]
+    )
+
+    html = "\n".join(rendered)
+    assert len(rendered) == 3
+    assert "first final source" in rendered[0]
+    assert "second final source" in rendered[1]
+    assert "third final source" in rendered[2]
+    assert "Page 3" in rendered[1]
+    assert "Retrieval score" not in html
+    assert "Reranker score" not in html
+    assert "RRF score" not in html
+    assert "0.02" not in html
+    assert "9.5" not in html
 
 
 def test_send_chat_to_backend_includes_backend_error_detail(monkeypatch) -> None:
