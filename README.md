@@ -83,10 +83,18 @@ The document is small (10 chunks), so Recall@4 is easy. MRR is the more useful n
 The frontend always sends its complete file list, and the backend replaces the session's index with it. Files are identified by a content hash, so an unchanged file is not parsed or embedded again. If embedding fails, the old index stays and the API returns 503 with Ollama's error message.
 
 **Answering** (`POST /chat`)
-1. `rag.py` builds the search query from the question plus the previous user question, so follow-ups like "and for indoor ones?" still find the right passage.
+1. `query_rewriter.py` turns a follow-up question into a standalone search query (see below). The answer prompt still receives the original question and conversation.
 2. Dense search (cosine ≥ 0.5) and BM25 each return up to 20 chunks. Reciprocal Rank Fusion merges the two lists by rank.
 3. The cross-encoder rescores the candidates. Chunks scoring far below the best one are dropped, and at most 4 are kept.
 4. The model answers from those chunks only. If nothing relevant is retrieved, or the model says the answer is not in the documents, the API returns a fixed refusal with no sources.
+
+### Conversation-aware retrieval
+
+Follow-up questions are rewritten as standalone search queries before retrieval. For example, after discussing Marco Stein, "Where did he study?" becomes "Where did Marco Stein study?". A question that starts a new topic should remain unchanged.
+
+The rewrite is produced by the local chat model, so it is treated as untrusted output. Empty, multi-line or overly long rewrites are rejected. The application also checks that identifiers such as `llama3.2:3b` or `HB-150` have not been changed or removed. If validation fails or the model times out, retrieval falls back to the original question.
+
+This adds one short model call for questions with conversation history. The fallback keeps retrieval usable when the small local model does not follow the rewriting instructions reliably.
 
 ## Decisions and alternatives I rejected
 
@@ -105,6 +113,7 @@ The frontend always sends its complete file list, and the backend replaces the s
 - The index lives in process memory: restarting the backend clears it, and sessions are never evicted.
 - Scanned PDFs need OCR, which is not included.
 - `llama3.2:3b` is small. It sometimes refuses when the answer requires combining two facts. `OLLAMA_MODEL=qwen2.5:14b` answers better if the machine can run it.
+- If a chat request fails, the next query rewrite may use the last successful exchange rather than the failed turn.
 
 ## What I would do next
 
@@ -123,7 +132,8 @@ backend/app/
   ingestion.py       Parsing and chunking
   retrieval.py       In-memory index, dense search, BM25, RRF
   reranker.py        Cross-encoder reranker
-  rag.py             Query building, prompt, answer
+  query_rewriter.py  Standalone search queries for follow-ups
+  rag.py             Retrieval call, prompt, answer
   ollama.py          Ollama client (embeddings + generation)
   config.py          Environment settings
 backend/scripts/     Retrieval evaluation
