@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from backend.app import config
+from backend.app.query_rewriter import rewrite_query
 from backend.app.retrieval import DocumentIndex, SearchResult
 from backend.app.schemas.chat import ChatHistoryMessage
 
@@ -12,7 +13,7 @@ HISTORY_MESSAGES = 6
 
 
 class LanguageModel(Protocol):
-    def generate(self, prompt: str) -> str: ...
+    def generate(self, prompt: str, timeout: float = ...) -> str: ...
 
 
 def answer_question(
@@ -22,7 +23,7 @@ def answer_question(
     question: str,
     history: list[ChatHistoryMessage],
 ) -> tuple[str, list[SearchResult]]:
-    results = index.search(session_id, build_search_query(question, history), config.TOP_K)
+    results = index.search(session_id, rewrite_query(llm, question, history), config.TOP_K)
     if not results:
         return NO_ANSWER, []
 
@@ -30,11 +31,6 @@ def answer_question(
     if not answer or answer.startswith(NO_ANSWER):
         return NO_ANSWER, []
     return answer, results
-
-
-def build_search_query(question: str, history: list[ChatHistoryMessage]) -> str:
-    previous_questions = [message.content for message in history if message.role == "user"]
-    return " ".join(previous_questions[-1:] + [question])
 
 
 def build_prompt(

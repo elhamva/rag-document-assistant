@@ -65,8 +65,9 @@ def test_chat_answers_from_retrieved_chunks(client, llm) -> None:
     assert "Question: How long is the warranty?" in llm.prompts[0]
 
 
-def test_follow_up_question_uses_previous_question_for_retrieval(client, llm) -> None:
+def test_follow_up_is_rewritten_for_retrieval_but_answered_with_original_question(client, llm) -> None:
     upload(client, ("warranty.txt", WARRANTY_TEXT))
+    llm.rewritten_query = "How long is the warranty?"
 
     response = client.post(
         "/chat",
@@ -80,7 +81,9 @@ def test_follow_up_question_uses_previous_question_for_retrieval(client, llm) ->
     )
 
     assert response.json()["sources"][0]["filename"] == "warranty.txt"
+    assert "Current question: and how long is it?" in llm.rewrite_prompts[0]
     assert "user: Is there a warranty?" in llm.prompts[0]
+    assert "Question: and how long is it?" in llm.prompts[0]
 
 
 def test_chat_without_matching_context_does_not_call_the_model(client, llm) -> None:

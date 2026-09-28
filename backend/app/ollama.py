@@ -24,7 +24,7 @@ class OllamaClient:
         self.embed_model = embed_model
         self._use_prefixes = embed_model.startswith("nomic-embed")
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, timeout: float = config.OLLAMA_TIMEOUT_SECONDS) -> str:
         data = self._post(
             "/api/generate",
             {
@@ -33,6 +33,7 @@ class OllamaClient:
                 "stream": False,
                 "options": {"temperature": 0},
             },
+            timeout,
         )
         return data["response"]
 
@@ -51,12 +52,14 @@ class OllamaClient:
     def _embed(self, texts: list[str]) -> list[list[float]]:
         return self._post("/api/embed", {"model": self.embed_model, "input": texts})["embeddings"]
 
-    def _post(self, path: str, payload: dict) -> dict:
+    def _post(
+        self, path: str, payload: dict, timeout: float = config.OLLAMA_TIMEOUT_SECONDS
+    ) -> dict:
         try:
             response = httpx.post(
                 self.base_url + path,
                 json=payload,
-                timeout=config.OLLAMA_TIMEOUT_SECONDS,
+                timeout=timeout,
             )
         except httpx.HTTPError as exc:
             raise OllamaError(
