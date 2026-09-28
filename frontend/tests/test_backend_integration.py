@@ -1,376 +1,92 @@
-import json
-from io import BytesIO
-from urllib.error import HTTPError, URLError
+import pytest
+import requests
 
-import streamlit as st
-
-from frontend import app as frontend_app
+from frontend import app
 
 
-class FakeHealthResponse:
-    status = 200
+class FakeResponse:
+    def __init__(self, status_code: int, payload: dict) -> None:
+        self.status_code = status_code
+        self.ok = status_code < 400
+        self.reason = "Error"
+        self.text = ""
+        self._payload = payload
 
-    def __init__(self, body: bytes) -> None:
-        self.body = body
-
-    def __enter__(self) -> "FakeHealthResponse":
-        return self
-
-    def __exit__(self, *_args: object) -> None:
-        return None
-
-    def read(self) -> bytes:
-        return self.body
+    def json(self) -> dict:
+        return self._payload
 
 
 class FakeUploadedFile:
-    def __init__(self, name: str, content: bytes, file_type: str) -> None:
+    def __init__(self, name: str, content: bytes, type: str = "text/plain") -> None:
         self.name = name
         self.size = len(content)
-        self.type = file_type
+        self.type = type
         self._content = content
 
     def getvalue(self) -> bytes:
         return self._content
 
 
-class FakeExpander:
-    def __enter__(self) -> "FakeExpander":
-        return self
-
-    def __exit__(self, *_args: object) -> None:
-        return None
-
-
-def test_check_backend_health_calls_existing_health_endpoint(monkeypatch) -> None:
-    requests = []
-
-    def fake_urlopen(request, timeout: float) -> FakeHealthResponse:
-        requests.append((request.full_url, request.get_header("Accept"), timeout))
-        return FakeHealthResponse(
-            b'{"status": "ok", "service": "document-chat-api"}'
-        )
-
-    monkeypatch.setattr(frontend_app, "urlopen", fake_urlopen)
-
-    status = frontend_app.check_backend_health(
-        "http://api.example.test/",
-        timeout_seconds=1.5,
-    )
-
-    assert status == frontend_app.BackendStatus(
-        available=True,
-        detail="Connected to document-chat-api.",
-    )
-    assert requests == [
-        ("http://api.example.test/health", "application/json", 1.5),
-    ]
-
-
-def test_check_backend_health_reports_unavailable_backend(monkeypatch) -> None:
-    def fake_urlopen(_request, timeout: float) -> FakeHealthResponse:
-        assert timeout == 2.0
-        raise URLError("connection refused")
-
-    monkeypatch.setattr(frontend_app, "urlopen", fake_urlopen)
-
-    status = frontend_app.check_backend_health("http://api.example.test")
-
-    assert status.available is False
-    assert "Health check failed" in status.detail
-
-
-def test_send_documents_to_backend_posts_uploaded_files(monkeypatch) -> None:
-    st.session_state.clear()
-    st.session_state.session_id = "session-test"
-    uploaded_file = FakeUploadedFile("guide.txt", b"hello world", "text/plain")
-    requests = []
-
-    def fake_urlopen(request, timeout: float) -> FakeHealthResponse:
-        requests.append((request, timeout))
-        return FakeHealthResponse(
-            (
-                b'{"documents": [{"id": "guide.txt:11:text/plain", '
-                b'"filename": "guide.txt", "status": "Ready", '
-                b'"chunk_count": 1, "error": null}]}'
-            )
-        )
-
-    monkeypatch.setattr(frontend_app, "urlopen", fake_urlopen)
-
-    results = frontend_app.send_documents_to_backend(
-        [uploaded_file],
-        base_url="http://api.example.test",
-        timeout_seconds=3.0,
-    )
-
-    request, timeout = requests[0]
-    assert request.full_url == "http://api.example.test/documents/process"
-    assert request.get_header("Content-type").startswith("multipart/form-data")
-    assert b'name="session_id"' in request.data
-    assert b"session-test" in request.data
-    assert b'name="files"; filename="guide.txt"' in request.data
-    assert b"hello world" in request.data
-    assert timeout == 3.0
-    assert results == [
-        frontend_app.DocumentProcessingResult(
-            id="guide.txt:11:text/plain",
-            filename="guide.txt",
-            status="Ready",
-            chunk_count=1,
-        )
-    ]
-
-
-def test_process_uploaded_documents_marks_backend_results_ready(monkeypatch) -> None:
-    st.session_state.clear()
-    uploaded_file = FakeUploadedFile("guide.txt", b"hello world", "text/plain")
-    st.session_state.uploaded_documents = [
-        {"id": "guide.txt:11:text/plain", "filename": "guide.txt", "status": "Waiting"}
-    ]
-    st.session_state.documents_processed = False
-    st.session_state.ready_document_count = 0
-
-    monkeypatch.setattr(
-        frontend_app,
-        "send_documents_to_backend",
-        lambda _uploaded_files: [
-            frontend_app.DocumentProcessingResult(
-                id="guide.txt:11:text/plain",
-                filename="guide.txt",
-                status="Ready",
-                chunk_count=1,
-            )
-        ],
-    )
-
-    status = frontend_app.process_uploaded_documents(
-        [uploaded_file],
-        health_checker=lambda: frontend_app.BackendStatus(
-            available=True,
-            detail="Connected to document-chat-api.",
-        ),
-    )
-
-    assert status.ok is True
-    assert st.session_state.uploaded_documents == [
-        {
-            "id": "guide.txt:11:text/plain",
-            "filename": "guide.txt",
-            "status": "Ready",
-            "chunk_count": 1,
-            "error": None,
-        }
-    ]
-    assert st.session_state.documents_processed is True
-    assert st.session_state.ready_document_count == 1
-
-
-def test_process_uploaded_documents_keeps_waiting_when_backend_is_unavailable() -> None:
-    st.session_state.clear()
-    uploaded_file = FakeUploadedFile("guide.txt", b"hello world", "text/plain")
-    st.session_state.uploaded_documents = [
-        {"id": "guide.txt:11:text/plain", "filename": "guide.txt", "status": "Waiting"}
-    ]
-    st.session_state.documents_processed = False
-    st.session_state.ready_document_count = 0
-
-    status = frontend_app.process_uploaded_documents(
-        [uploaded_file],
-        health_checker=lambda: frontend_app.BackendStatus(
-            available=False,
-            detail="Health check failed: connection refused.",
-        ),
-    )
-
-    assert status.ok is False
-    assert st.session_state.uploaded_documents == [
-        {"id": "guide.txt:11:text/plain", "filename": "guide.txt", "status": "Waiting"}
-    ]
-    assert st.session_state.documents_processed is False
-    assert st.session_state.ready_document_count == 0
-
-
-def test_send_chat_to_backend_posts_question(monkeypatch) -> None:
-    st.session_state.clear()
-    st.session_state.session_id = "session-test"
-    requests = []
-
-    def fake_urlopen(request, timeout: float) -> FakeHealthResponse:
-        requests.append((request, timeout))
-        return FakeHealthResponse(
-            (
-                b'{"answer": "Citation metadata is kept.", '
-                b'"sources": [{"chunk_id": "chunk-1", "filename": "guide.txt", '
-                b'"page": null, "snippet": "citation metadata", "score": 1.0}]}'
-            )
-        )
-
-    monkeypatch.setattr(frontend_app, "urlopen", fake_urlopen)
-
-    answer = frontend_app.send_chat_to_backend(
-        "What metadata is kept?",
-        history=[{"role": "user", "content": "Tell me about citations"}],
-        base_url="http://api.example.test",
-        timeout_seconds=4.0,
-    )
-
-    request, timeout = requests[0]
-    assert request.full_url == "http://api.example.test/chat"
-    assert request.get_header("Content-type") == "application/json"
-    assert json.loads(request.data.decode("utf-8")) == {
-        "question": "What metadata is kept?",
-        "session_id": "session-test",
-        "history": [{"role": "user", "content": "Tell me about citations"}],
-    }
-    assert timeout == 4.0
-    assert answer == frontend_app.ChatAnswer(
-        content="Citation metadata is kept.",
-        sources=[
-            {
-                "chunk_id": "chunk-1",
-                "filename": "guide.txt",
-                "page": None,
-                "snippet": "citation metadata",
-                "score": 1.0,
-            }
-        ],
-    )
-
-
-def test_render_sources_keeps_score_hidden_and_preserves_received_order(monkeypatch) -> None:
-    rendered = []
-
-    monkeypatch.setattr(frontend_app.st, "expander", lambda *_args, **_kwargs: FakeExpander())
-    monkeypatch.setattr(
-        frontend_app.st,
-        "markdown",
-        lambda body, **_kwargs: rendered.append(body),
-    )
-
-    frontend_app.render_sources(
-        [
-            {
-                "chunk_id": "chunk-1",
-                "filename": "first.txt",
-                "page": None,
-                "snippet": "first final source",
-                "score": 0.02,
-            },
-            {
-                "chunk_id": "chunk-2",
-                "filename": "second.txt",
-                "page": 3,
-                "snippet": "second final source",
-                "score": 9.5,
-            },
-            {
-                "chunk_id": "chunk-3",
-                "filename": "third.txt",
-                "page": None,
-                "snippet": "third final source",
-                "score": 1.0,
-            },
-        ]
-    )
-
-    html = "\n".join(rendered)
-    assert len(rendered) == 3
-    assert "first final source" in rendered[0]
-    assert "second final source" in rendered[1]
-    assert "third final source" in rendered[2]
-    assert "Page 3" in rendered[1]
-    assert "Retrieval score" not in html
-    assert "Reranker score" not in html
-    assert "RRF score" not in html
-    assert "0.02" not in html
-    assert "9.5" not in html
-
-
-def test_send_chat_to_backend_includes_backend_error_detail(monkeypatch) -> None:
-    st.session_state.clear()
-    st.session_state.session_id = "session-test"
-
-    def fake_urlopen(_request, timeout: float) -> FakeHealthResponse:
-        assert timeout == 30.0
-        raise HTTPError(
-            url="http://api.example.test/chat",
-            code=503,
-            msg="Service Unavailable",
-            hdrs={},
-            fp=BytesIO(
-                b'{"detail": "Ollama is not available. Start Ollama and pull the configured model."}'
-            ),
-        )
-
-    monkeypatch.setattr(frontend_app, "urlopen", fake_urlopen)
-
-    try:
-        frontend_app.send_chat_to_backend(
-            "What metadata is kept?",
-            base_url="http://api.example.test",
-        )
-    except frontend_app.BackendRequestError as exc:
-        assert str(exc) == (
-            "Chat returned HTTP 503: Ollama is not available. "
-            "Start Ollama and pull the configured model."
-        )
-    else:
-        raise AssertionError("Expected BackendRequestError")
-
-
-def test_add_chat_response_preserves_history_with_backend_answer(monkeypatch) -> None:
-    st.session_state.clear()
+def test_process_documents_sends_files_and_session(monkeypatch) -> None:
     calls = []
-    st.session_state.chat_messages = [
-        {"role": "user", "content": "Tell me about citations"},
-        {"role": "assistant", "content": "Citation metadata is used.", "sources": []},
-    ]
 
+    def fake_post(url: str, timeout: float, **kwargs) -> FakeResponse:
+        calls.append((url, kwargs))
+        return FakeResponse(200, {"documents": [{"filename": "a.txt", "status": "ready"}]})
+
+    monkeypatch.setattr(requests, "post", fake_post)
+
+    documents = app.process_documents([FakeUploadedFile("a.txt", b"hello")], session_id="abc")
+
+    assert documents == [{"filename": "a.txt", "status": "ready"}]
+    url, kwargs = calls[0]
+    assert url.endswith("/documents/process")
+    assert kwargs["files"] == [("files", ("a.txt", b"hello", "text/plain"))]
+    assert kwargs["data"] == {"session_id": "abc"}
+
+
+def test_ask_question_sends_history_and_session(monkeypatch) -> None:
+    calls = []
+
+    def fake_post(url: str, timeout: float, **kwargs) -> FakeResponse:
+        calls.append(kwargs["json"])
+        return FakeResponse(200, {"answer": "Five years.", "sources": []})
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    history = [{"role": "user", "content": "Hi"}]
+
+    answer = app.ask_question("How long?", history, session_id="abc")
+
+    assert answer == {"answer": "Five years.", "sources": []}
+    assert calls == [{"question": "How long?", "history": history, "session_id": "abc"}]
+
+
+def test_backend_error_detail_is_shown(monkeypatch) -> None:
     monkeypatch.setattr(
-        frontend_app,
-        "send_chat_to_backend",
-        lambda question, history: calls.append((question, history))
-        or frontend_app.ChatAnswer(
-            content="Citation metadata is kept.",
-            sources=[
-                {
-                    "chunk_id": "chunk-1",
-                    "filename": "guide.txt",
-                    "page": None,
-                    "snippet": "citation metadata",
-                    "score": 1.0,
-                }
-            ],
-        ),
+        requests,
+        "post",
+        lambda *args, **kwargs: FakeResponse(503, {"detail": "Cannot reach Ollama."}),
     )
 
-    frontend_app.add_chat_response("What metadata is kept?")
+    with pytest.raises(app.BackendError, match="Backend error \\(503\\): Cannot reach Ollama."):
+        app.ask_question("question", [], session_id="abc")
 
-    assert st.session_state.chat_messages == [
-        {"role": "user", "content": "Tell me about citations"},
-        {"role": "assistant", "content": "Citation metadata is used.", "sources": []},
-        {"role": "user", "content": "What metadata is kept?"},
-        {
-            "role": "assistant",
-            "content": "Citation metadata is kept.",
-            "sources": [
-                {
-                    "chunk_id": "chunk-1",
-                    "filename": "guide.txt",
-                    "page": None,
-                    "snippet": "citation metadata",
-                    "score": 1.0,
-                }
-            ],
-        },
-    ]
-    assert calls == [
-        (
-            "What metadata is kept?",
-            [
-                {"role": "user", "content": "Tell me about citations"},
-                {"role": "assistant", "content": "Citation metadata is used."},
-            ],
-        )
-    ]
+
+def test_unreachable_backend_gives_clear_error(monkeypatch) -> None:
+    def fake_post(*args, **kwargs):
+        raise requests.ConnectionError("refused")
+
+    monkeypatch.setattr(requests, "post", fake_post)
+
+    with pytest.raises(app.BackendError, match="Backend is not reachable"):
+        app.ask_question("question", [], session_id="abc")
+
+
+def test_history_skips_errors_and_keeps_recent_turns() -> None:
+    messages = [{"role": "user", "content": f"q{i}"} for i in range(10)]
+    messages.append({"role": "assistant", "content": "Backend error", "error": True})
+
+    history = app.build_history(messages)
+
+    assert len(history) == app.HISTORY_MESSAGES
+    assert history[-1] == {"role": "user", "content": "q9"}

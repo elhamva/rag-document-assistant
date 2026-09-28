@@ -1,173 +1,133 @@
 # Document Chat
 
-A local RAG document assistant with a Streamlit frontend, FastAPI backend, Ollama generation, Ollama embeddings, hybrid retrieval, RRF fusion, and optional cross-encoder reranking.
+Upload PDF, TXT or Markdown files and ask questions about them. Answers are grounded in the uploaded documents and show the passages they came from.
 
-## Features
+- **Frontend:** Streamlit (upload, chat, source panels)
+- **Backend:** FastAPI (parsing, chunking, hybrid retrieval, reranking, answer generation)
+- **Models:** Ollama running locally, `llama3.2:3b` for answers and `nomic-embed-text` for embeddings. No API keys.
 
-- Upload one or more PDF or TXT documents.
-- Parse, chunk, embed, and index documents in the backend.
-- Keep indexed chunks isolated per browser session.
-- Ask document-grounded questions in a chat interface.
-- Retrieve with dense semantic search and lexical search on every query.
-- Fuse retrieval rankings with Reciprocal Rank Fusion.
-- Rerank fused candidates with a local cross-encoder when available.
-- Return answers grounded in retrieved chunks with source snippets and scores.
-- Run locally with Python or as a two-service Docker Compose application.
+The architecture diagram is in [`docs/architecture.drawio`](docs/architecture.drawio). Open it with [draw.io](https://app.diagrams.net).
 
-## Architecture
+## Run with Docker
 
-```text
-Streamlit frontend
-  -> uploads files with session_id
-  -> sends chat questions with the same session_id
+1. Install [Ollama](https://ollama.com) and pull the two models:
 
-FastAPI backend
-  -> parses PDF/TXT
-  -> chunks text
-  -> embeds chunks with Ollama nomic-embed-text
-  -> stores in-memory chunks by session_id
-  -> retrieves dense + lexical candidates
-  -> fuses with RRF
-  -> reranks with a cross-encoder when enabled
-  -> sends grounded prompt to Ollama llama3.2:3b
-  -> returns answer and source metadata
-```
+   ```bash
+   ollama pull llama3.2:3b
+   ollama pull nomic-embed-text
+   ```
 
-## Why These Choices
+2. Make sure Ollama is running. On **Linux**, Ollama only listens on localhost by default, so containers cannot reach it; start it with `OLLAMA_HOST=0.0.0.0 ollama serve`. On macOS and Windows the desktop app works as is.
 
-- Streamlit keeps the frontend small and demo-friendly while still providing upload and chat primitives.
-- FastAPI gives a clear backend boundary for document processing, retrieval, and model orchestration.
-- Ollama keeps both generation and embeddings local, avoiding API keys for the case-study demo.
-- In-memory indexing keeps scope deliberate for a local demo and avoids adding a database or vector store.
-- Hybrid retrieval improves recall over semantic-only or lexical-only search without adding infrastructure.
-- RRF is simple, deterministic, and easy to explain during review.
-- The cross-encoder reranker is behind a small adapter so the model can be swapped later.
-- Docker Compose runs only the application services and uses the host Ollama service on macOS.
+3. Start the app:
 
-## Requirements
+   ```bash
+   docker compose up --build
+   ```
 
-- Python 3.11 recommended for local development.
-- Docker Desktop for containerized runs.
-- Ollama running on the host machine.
-- Ollama models:
-  - `llama3.2:3b`
-  - `nomic-embed-text`
+4. Open http://localhost:8501. A sample document is in `sample_docs/` if you want something to try.
 
-## Environment Variables
+The first build takes a few minutes because it installs CPU-only PyTorch and downloads the reranker model into the image.
 
-| Variable | Default | Used by |
+## Environment variables
+
+All have defaults, so nothing is required.
+
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| `DOCUMENT_CHAT_API_URL` | `http://localhost:8000` locally, `http://backend:8000` in Docker Compose | frontend |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` locally, `http://host.docker.internal:11434` in Docker Compose | backend |
-| `OLLAMA_MODEL` | `llama3.2:3b` | backend |
-| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | backend |
-| `RAG_TOP_K` | `4` | backend |
-| `RAG_DENSE_TOP_K` | `20` | backend |
-| `RAG_LEXICAL_TOP_K` | `20` | backend |
-| `RAG_CANDIDATE_TOP_K` | `20` | backend |
-| `RAG_RERANKER_MODEL` | `cross-encoder/ms-marco-TinyBERT-L-2-v2` | backend |
-| `RAG_RERANKER_ENABLED` | `auto` | backend |
+| `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` (Docker), `http://localhost:11434` (local) | Where the backend finds Ollama |
+| `OLLAMA_MODEL` | `llama3.2:3b` | Model that writes the answers |
+| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model |
+| `RAG_TOP_K` | `4` | Maximum number of chunks passed to the model |
+| `RAG_RERANKER_ENABLED` | `true` | Turn the cross-encoder reranker on or off |
+| `RAG_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Reranker model (Docker build arg as well) |
+| `DOCUMENT_CHAT_API_URL` | `http://localhost:8000` | Backend URL used by the frontend (set automatically in Docker) |
 
-No API keys are required.
+## Run locally without Docker
 
-## Run With Docker
-
-Start Ollama and pull the required models:
+Needs Python 3.9+ and Ollama with the models above.
 
 ```bash
-ollama serve
-ollama pull llama3.2:3b
-ollama pull nomic-embed-text
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+uvicorn backend.app.main:app --reload            # terminal 1, from the repository root
+cd frontend && streamlit run app.py              # terminal 2, from frontend/ so the theme loads
 ```
+ If `sentence-transformers` is not installed, the backend logs a warning and runs without the reranker.
 
-If Docker containers cannot reach Ollama on macOS, start Ollama with a host binding:
+## Tests and evaluation
 
 ```bash
-OLLAMA_HOST=0.0.0.0:11434 ollama serve
+pytest                                           # unit and API tests, no Ollama needed
+python backend/scripts/evaluate_retrieval.py     # needs Ollama running
 ```
 
-Start the app:
+The evaluation asks 22 questions about `sample_docs/brightline_service_handbook.md`. A question counts as found when a retrieved chunk contains the expected phrase. Most questions are paraphrased on purpose ("Do I have to pay for delivery?" vs. "Shipping is free of charge…"), and a few use product codes such as `HB-150`.
 
-```bash
-docker compose up --build
-```
+| Strategy | Recall@4 | MRR |
+| --- | --- | --- |
+| Dense only | 1.00 | 0.79 |
+| BM25 only | 0.95 | 0.83 |
+| Hybrid (RRF) | 1.00 | 0.92 |
+| Hybrid + reranker | 1.00 | 0.95 |
 
-Open:
+The document is small (10 chunks), so Recall@4 is easy. MRR is the more useful number here: hybrid search and reranking move the right chunk to the top. The next step would be a larger set of real documents.
+
+## How it works
+
+**Indexing** (`POST /documents/process`)
+1. `ingestion.py` extracts text per PDF page (pypdf) or decodes text files.
+2. The text is split into 180-word chunks with 40 words of overlap. Chunks never cross a page, so each one cites a single page.
+3. `retrieval.py` embeds the chunks through Ollama and stores them in memory under the browser's `session_id`.
+
+The frontend always sends its complete file list, and the backend replaces the session's index with it. Files are identified by a content hash, so an unchanged file is not parsed or embedded again. If embedding fails, the old index stays and the API returns 503 with Ollama's error message.
+
+**Answering** (`POST /chat`)
+1. `rag.py` builds the search query from the question plus the previous user question, so follow-ups like "and for indoor ones?" still find the right passage.
+2. Dense search (cosine ≥ 0.5) and BM25 each return up to 20 chunks. Reciprocal Rank Fusion merges the two lists by rank.
+3. The cross-encoder rescores the candidates. Chunks scoring far below the best one are dropped, and at most 4 are kept.
+4. The model answers from those chunks only. If nothing relevant is retrieved, or the model says the answer is not in the documents, the API returns a fixed refusal with no sources.
+
+## Decisions and alternatives I rejected
+
+| Decision | Why | Rejected |
+| --- | --- | --- |
+| **Streamlit** frontend | Upload, chat and expanders are built in, so time went into retrieval quality instead of UI plumbing. | React/Next.js: nicer UI, but a second language and build toolchain for no gain in this scope. |
+| **Ollama, local models** | No API keys to hand over. Reviewers can run it offline, and documents never leave the machine. | OpenAI/Anthropic APIs: better answers, but they need a key and send documents to a third party. The client is one small class, so swapping is easy. |
+| **In-memory index** | A few documents per session fit in memory. Brute-force cosine over a few hundred vectors takes milliseconds. | Qdrant/Chroma: persistence and scale this demo does not need, plus another container to run. |
+| **Hybrid dense + BM25 with RRF** | Dense search handles paraphrases; BM25 catches exact codes and numbers. RRF needs no score calibration. The table above shows the gain. | Dense only: misses exact identifiers. Weighted score blending: needs tuning because the scores live on different scales. |
+| **Cross-encoder reranker** | It reads question and chunk together, so it ranks better. It also lets the app drop clearly irrelevant chunks. | LLM-based reranking: slower and costlier per query. |
+| **Hand-written pipeline** | Every step is a short function I can explain and test. | LangChain/LlamaIndex: faster to start, but more abstraction than this pipeline needs. |
+| **Word-based chunks, page-aware** | Simple, predictable, and gives page-accurate citations. | Semantic or heading-based chunking: better for long structured documents, planned as a next step. |
+
+## Limitations
+
+- The index lives in process memory: restarting the backend clears it, and sessions are never evicted.
+- Scanned PDFs need OCR, which is not included.
+- `llama3.2:3b` is small. It sometimes refuses when the answer requires combining two facts. `OLLAMA_MODEL=qwen2.5:14b` answers better if the machine can run it.
+
+## What I would do next
+
+- Persist the index (SQLite or Qdrant) and evict idle sessions.
+- Stream answers token by token.
+- Highlight the cited passage inside the original PDF.
+- Build an evaluation set from real customer documents and add answer-quality checks, not only retrieval.
+- Use structure-aware chunking that follows headings and tables.
+
+## Project structure
 
 ```text
-http://localhost:8501
+backend/app/
+  api/routes/        HTTP endpoints (documents, chat, health)
+  schemas/           Request and response models
+  ingestion.py       Parsing and chunking
+  retrieval.py       In-memory index, dense search, BM25, RRF
+  reranker.py        Cross-encoder reranker
+  rag.py             Query building, prompt, answer
+  ollama.py          Ollama client (embeddings + generation)
+  config.py          Environment settings
+backend/scripts/     Retrieval evaluation
+frontend/app.py      Streamlit UI
+sample_docs/         Fictional handbook for demos and evaluation
+docs/                Architecture diagram
 ```
-
-The backend is exposed at:
-
-```text
-http://localhost:8000
-```
-
-## Run Locally Without Docker
-
-Install dependencies:
-
-```bash
-python3 -m pip install -r backend/requirements.txt
-python3 -m pip install -r frontend/requirements.txt
-```
-
-Start the backend:
-
-```bash
-python3 -m uvicorn backend.app.main:app --reload
-```
-
-Start the frontend in another terminal:
-
-```bash
-python3 -m streamlit run frontend/app.py
-```
-
-Open:
-
-```text
-http://localhost:8501
-```
-
-## Test
-
-```bash
-python3 -m pytest
-```
-
-## Retrieval Evaluation
-
-```bash
-python3 backend/scripts/evaluate_retrieval.py
-```
-
-The script runs a small local Recall@k check with deterministic test embeddings.
-
-## Project Structure
-
-```text
-backend/
-  app/
-    api/routes/
-    schemas/
-    document_index.py
-    main.py
-  scripts/
-  tests/
-  Dockerfile
-frontend/
-  app.py
-  tests/
-  Dockerfile
-docker-compose.yml
-```
-
-## What I Would Improve Next
-
-- Persist uploaded document indexes outside process memory.
-- Add document deletion and reprocessing controls.
-- Cache the reranker model in a Docker volume for faster first-query startup.
-- Add citation highlighting against the original uploaded document.
-- Expand retrieval evaluation with real documents and more query sets.

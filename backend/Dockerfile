@@ -6,8 +6,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY backend/requirements.txt /app/backend/requirements.txt
-RUN python -m pip install --upgrade pip \
-    && python -m pip install --no-cache-dir -r /app/backend/requirements.txt
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r /app/backend/requirements.txt
+
+ARG RAG_RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
+ENV RAG_RERANKER_MODEL=${RAG_RERANKER_MODEL}
+RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('${RAG_RERANKER_MODEL}')"
 
 COPY backend /app/backend
 

@@ -1,14 +1,11 @@
-from __future__ import annotations
-
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
 
 class ProcessedDocument(BaseModel):
-    id: str
     filename: str
-    status: str
+    status: Literal["ready", "failed"]
     chunk_count: int
     error: Optional[str] = None
 

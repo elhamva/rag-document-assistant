@@ -1,27 +1,23 @@
-from __future__ import annotations
+from typing import Annotated, Literal, Optional
 
-from typing import Optional
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 
 class ChatHistoryMessage(BaseModel):
-    role: str
+    role: Literal["user", "assistant"]
     content: str
 
 
 class ChatRequest(BaseModel):
-    question: str
+    question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
     session_id: str = "default"
     history: list[ChatHistoryMessage] = Field(default_factory=list)
 
 
 class ChatSource(BaseModel):
-    chunk_id: str
     filename: str
     page: Optional[int] = None
-    snippet: str
-    score: float
+    text: str
 
 
 class ChatResponse(BaseModel):

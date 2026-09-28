@@ -1,58 +1,47 @@
-from __future__ import annotations
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from fastapi import APIRouter, File, Form, UploadFile
-
-from backend.app.document_index import DocumentProcessingError, document_index, process_document
-from backend.app.schemas.documents import ProcessedDocument, ProcessDocumentsResponse
+from backend.app.dependencies import get_index
+from backend.app.ingestion import Chunk, DocumentError, content_hash, parse_document
+from backend.app.ollama import OllamaError
+from backend.app.retrieval import DocumentIndex
+from backend.app.schemas.documents import ProcessDocumentsResponse, ProcessedDocument
 
 
 router = APIRouter(prefix="/documents")
 
 
 @router.post("/process", response_model=ProcessDocumentsResponse)
-async def process_documents(
+def process_documents(
     files: list[UploadFile] = File(...),
     session_id: str = Form("default"),
+    index: DocumentIndex = Depends(get_index),
 ) -> ProcessDocumentsResponse:
-    indexed_chunks = []
-    documents: list[ProcessedDocument] = []
+    previous = index.documents(session_id)
+    documents: dict[str, list[Chunk]] = {}
+    results = []
 
-    for uploaded_file in files:
-        filename = uploaded_file.filename or "uploaded-file"
-        content = await uploaded_file.read()
-        document_id = build_document_id(
-            filename=filename,
-            size=len(content),
-            content_type=uploaded_file.content_type,
-        )
+    for upload in files:
+        filename = upload.filename or "document"
+        content = upload.file.read()
+        document_id = content_hash(content)
 
-        try:
-            chunks = process_document(filename, content)
-        except DocumentProcessingError as exc:
-            documents.append(
-                ProcessedDocument(
-                    id=document_id,
-                    filename=filename,
-                    status="Failed",
-                    chunk_count=0,
-                    error=str(exc),
+        if document_id in previous:
+            chunks = previous[document_id]
+        else:
+            try:
+                chunks = parse_document(filename, content)
+            except DocumentError as exc:
+                results.append(
+                    ProcessedDocument(filename=filename, status="failed", chunk_count=0, error=str(exc))
                 )
-            )
-            continue
+                continue
 
-        indexed_chunks.extend(chunks)
-        documents.append(
-            ProcessedDocument(
-                id=document_id,
-                filename=filename,
-                status="Ready",
-                chunk_count=len(chunks),
-            )
-        )
+        documents[document_id] = chunks
+        results.append(ProcessedDocument(filename=filename, status="ready", chunk_count=len(chunks)))
 
-    document_index.replace_chunks(indexed_chunks, session_id=session_id)
-    return ProcessDocumentsResponse(documents=documents)
+    try:
+        index.replace(session_id, documents)
+    except OllamaError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-
-def build_document_id(filename: str, size: int, content_type: str | None) -> str:
-    return f"{filename}:{size}:{content_type or ''}"
+    return ProcessDocumentsResponse(documents=results)
