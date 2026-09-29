@@ -42,6 +42,9 @@ class OllamaClient:
             payload["format"] = json_schema  # Ollama constrains decoding to this schema
         return self._post("/api/generate", payload, timeout)["response"]
 
+    def with_model(self, model: str) -> "OllamaClient":
+        return OllamaClient(base_url=self.base_url, model=model, embed_model=self.embed_model)
+
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         prefix = "search_document: " if self._use_prefixes else ""
         vectors = []

@@ -16,9 +16,10 @@ def chat(
     index: DocumentIndex = Depends(get_index),
     llm: OllamaClient = Depends(get_llm),
 ) -> ChatResponse:
+    answer_llm = llm.with_model(request.model) if request.model else llm
     try:
         answer, results = answer_question(
-            index, llm, request.session_id, request.question, request.history
+            index, answer_llm, request.session_id, request.question, request.history
         )
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

@@ -65,6 +65,18 @@ def test_chat_answers_from_retrieved_chunks(client, llm) -> None:
     assert "Question: How long is the warranty?" in llm.prompts[0]
 
 
+def test_chat_can_override_answer_model(client, llm) -> None:
+    upload(client, ("warranty.txt", WARRANTY_TEXT))
+
+    response = client.post(
+        "/chat",
+        json={"question": "How long is the warranty?", "model": "qwen2.5:14b"},
+    )
+
+    assert response.status_code == 200
+    assert llm.model_overrides == ["qwen2.5:14b"]
+
+
 def test_follow_up_is_rewritten_for_retrieval_but_answered_with_original_question(client, llm) -> None:
     upload(client, ("warranty.txt", WARRANTY_TEXT))
     llm.rewritten_query = "How long is the warranty?"

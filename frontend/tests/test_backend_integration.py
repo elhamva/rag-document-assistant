@@ -61,6 +61,27 @@ def test_ask_question_sends_history_and_session(monkeypatch) -> None:
     assert calls == [{"question": "How long?", "history": history, "session_id": "abc"}]
 
 
+def test_ask_question_can_send_model(monkeypatch) -> None:
+    calls = []
+
+    def fake_post(url: str, timeout: float, **kwargs) -> FakeResponse:
+        calls.append(kwargs["json"])
+        return FakeResponse(200, {"answer": "Five years.", "sources": []})
+
+    monkeypatch.setattr(requests, "post", fake_post)
+
+    app.ask_question("How long?", [], session_id="abc", model="qwen2.5:14b")
+
+    assert calls == [
+        {
+            "question": "How long?",
+            "history": [],
+            "session_id": "abc",
+            "model": "qwen2.5:14b",
+        }
+    ]
+
+
 def test_backend_error_detail_is_shown(monkeypatch) -> None:
     monkeypatch.setattr(
         requests,
@@ -90,3 +111,27 @@ def test_history_skips_errors_and_keeps_recent_turns() -> None:
 
     assert len(history) == app.HISTORY_MESSAGES
     assert history[-1] == {"role": "user", "content": "q9"}
+
+
+def test_highlight_source_marks_answer_terms() -> None:
+    html = app.highlight_source(
+        "Shipping is free of charge above 1,500 euros.",
+        "No, shipping is free of charge for orders above 1,500 euros.",
+    )
+
+    assert "<mark>Shipping</mark>" in html
+    assert "<mark>free</mark>" in html
+    assert "<mark>euros</mark>" in html
+
+
+def test_answer_artifact_contains_answer_model_and_sources() -> None:
+    artifact = app.build_answer_artifact(
+        "Five years.",
+        [{"filename": "handbook.md", "page": 2, "text": "Warranty: five years."}],
+        model="llama3.2:3b",
+    )
+
+    assert "## Answer" in artifact
+    assert "Model: `llama3.2:3b`" in artifact
+    assert "`handbook.md`, page 2" in artifact
+    assert "> Warranty: five years." in artifact

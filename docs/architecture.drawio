@@ -21,10 +21,10 @@
         <mxCell id="user" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1" value="User" vertex="1">
           <mxGeometry x="60" y="510" width="40" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="frontend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14" value="&lt;b&gt;Streamlit frontend&lt;/b&gt;&lt;br&gt;&lt;br&gt;Upload PDF / TXT&lt;br&gt;Chat history&lt;br&gt;Source panels&lt;br&gt;&lt;font style=&quot;font-size: 12px&quot; color=&quot;#555555&quot;&gt;session_id per browser tab&lt;/font&gt;" vertex="1">
+        <mxCell id="frontend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14" value="&lt;b&gt;Streamlit frontend&lt;/b&gt;&lt;br&gt;&lt;br&gt;Upload PDF / TXT&lt;br&gt;Chat history&lt;br&gt;Highlighted sources&lt;br&gt;Answer artifacts + model comparison&lt;br&gt;&lt;font style=&quot;font-size: 12px&quot; color=&quot;#555555&quot;&gt;session_id per browser tab&lt;/font&gt;" vertex="1">
           <mxGeometry x="200" y="470" width="190" height="170" as="geometry" />
         </mxCell>
-        <mxCell id="eval" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#f1f8e9;strokeColor=#2e7d32;strokeWidth=2;fontSize=13" value="&lt;b&gt;Retrieval evaluation&lt;/b&gt;&lt;br&gt;scripts/evaluate_retrieval.py&lt;br&gt;22 questions · sample handbook&lt;br&gt;MRR: dense 0.79 · BM25 0.83&lt;br&gt;hybrid 0.92 · + rerank 0.95" vertex="1">
+        <mxCell id="eval" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#f1f8e9;strokeColor=#2e7d32;strokeWidth=2;fontSize=13" value="&lt;b&gt;Evaluation&lt;/b&gt; (backend/scripts)&lt;br&gt;Handbook + 500-page catalogue&lt;br&gt;R@4 1.00 · MRR 0.92&lt;br&gt;Refusals 15/15 · param sweeps" vertex="1">
           <mxGeometry x="195" y="760" width="235" height="120" as="geometry" />
         </mxCell>
 
@@ -51,7 +51,7 @@
           <mxGeometry x="820" y="730" width="300" height="110" as="geometry" />
         </mxCell>
 
-        <mxCell id="orch" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13" value="&lt;b&gt;RAG orchestrator&lt;/b&gt; (chat route)&lt;br&gt;rag.py · history-aware query&lt;br&gt;grounding prompt · refusal hides sources" vertex="1">
+        <mxCell id="orch" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13" value="&lt;b&gt;RAG orchestrator&lt;/b&gt; (chat route)&lt;br&gt;rag.py · history-aware query&lt;br&gt;JSON reply · refusal flag hides sources" vertex="1">
           <mxGeometry x="960" y="360" width="300" height="80" as="geometry" />
         </mxCell>
         <mxCell id="retrieve" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#2e7d32;strokeWidth=3;fontSize=13" value="&lt;b&gt;Hybrid retrieval&lt;/b&gt;&lt;br&gt;Dense cosine (≥ 0.5, top 20)&lt;br&gt;+ BM25 keyword (top 20)&lt;br&gt;RRF fusion (k = 60)" vertex="1">
@@ -68,7 +68,7 @@
           <mxGeometry x="1260" y="910" width="280" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="ollama" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14" value="&lt;b&gt;Ollama&lt;/b&gt; (runs on the host, no API key)&lt;br&gt;nomic-embed-text · /api/embed&amp;nbsp;&amp;nbsp;&amp;nbsp;|&amp;nbsp;&amp;nbsp;&amp;nbsp;llama3.2:3b · /api/generate" vertex="1">
+        <mxCell id="ollama" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14" value="&lt;b&gt;Ollama&lt;/b&gt; (host, or container via override file · no API key)&lt;br&gt;nomic-embed-text · /api/embed&amp;nbsp;&amp;nbsp;&amp;nbsp;|&amp;nbsp;&amp;nbsp;&amp;nbsp;llama3.2:3b · /api/generate" vertex="1">
           <mxGeometry x="480" y="1260" width="1080" height="90" as="geometry" />
         </mxCell>
         <mxCell id="hf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=12" value="&lt;b&gt;Hugging Face Hub&lt;/b&gt;&lt;br&gt;reranker weights&lt;br&gt;(baked into Docker image)" vertex="1">

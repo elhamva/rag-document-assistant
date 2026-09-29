@@ -25,6 +25,8 @@ services:
       dockerfile: frontend/Dockerfile
     environment:
       DOCUMENT_CHAT_API_URL: http://backend:8000
+      DOCUMENT_CHAT_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      DOCUMENT_CHAT_COMPARE_MODEL: ${DOCUMENT_CHAT_COMPARE_MODEL:-}
     ports:
       - "8501:8501"
     depends_on:

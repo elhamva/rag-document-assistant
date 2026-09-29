@@ -37,6 +37,20 @@ def test_generate_passes_json_schema_as_format(monkeypatch) -> None:
     assert calls[0][1]["format"] == schema
 
 
+def test_with_model_keeps_connection_and_embedding_model() -> None:
+    client = OllamaClient(
+        base_url="http://ollama.test",
+        model="llama3.2:3b",
+        embed_model="nomic-embed-text",
+    )
+
+    alternate = client.with_model("qwen2.5:14b")
+
+    assert alternate.base_url == "http://ollama.test"
+    assert alternate.model == "qwen2.5:14b"
+    assert alternate.embed_model == "nomic-embed-text"
+
+
 def test_nomic_embeddings_use_task_prefixes_and_batches(monkeypatch) -> None:
     calls = []
 

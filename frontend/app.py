@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from html import escape
 from typing import Any
 from uuid import uuid4
@@ -10,8 +11,32 @@ import streamlit as st
 
 
 BACKEND_URL = os.getenv("DOCUMENT_CHAT_API_URL", "http://localhost:8000").rstrip("/")
+DEFAULT_ANSWER_MODEL = os.getenv("DOCUMENT_CHAT_MODEL", "llama3.2:3b")
+DEFAULT_COMPARE_MODEL = os.getenv("DOCUMENT_CHAT_COMPARE_MODEL", "")
 REQUEST_TIMEOUT_SECONDS = 300
 HISTORY_MESSAGES = 6
+HIGHLIGHT_STOP_WORDS = {
+    "about",
+    "above",
+    "after",
+    "answer",
+    "because",
+    "below",
+    "does",
+    "from",
+    "have",
+    "that",
+    "their",
+    "there",
+    "these",
+    "this",
+    "what",
+    "when",
+    "where",
+    "which",
+    "with",
+    "within",
+}
 
 
 class BackendError(RuntimeError):
@@ -39,10 +64,13 @@ def process_documents(files: list, session_id: str) -> list[dict]:
     return post_to_backend("/documents/process", files=payload, data={"session_id": session_id})["documents"]
 
 
-def ask_question(question: str, history: list[dict], session_id: str) -> dict:
+def ask_question(question: str, history: list[dict], session_id: str, model: str | None = None) -> dict:
+    payload = {"question": question, "history": history, "session_id": session_id}
+    if model:
+        payload["model"] = model
     return post_to_backend(
         "/chat",
-        json={"question": question, "history": history, "session_id": session_id},
+        json=payload,
     )
 
 
@@ -64,6 +92,9 @@ def init_state() -> None:
     st.session_state.setdefault("documents", [])
     st.session_state.setdefault("processed_files", [])
     st.session_state.setdefault("messages", [])
+    st.session_state.setdefault("answer_model", DEFAULT_ANSWER_MODEL)
+    st.session_state.setdefault("compare_enabled", False)
+    st.session_state.setdefault("comparison_model", DEFAULT_COMPARE_MODEL)
 
 
 def pluralize(noun: str, count: int) -> str:
@@ -72,6 +103,15 @@ def pluralize(noun: str, count: int) -> str:
 
 def ready_count() -> int:
     return sum(1 for document in st.session_state.documents if document["status"] == "ready")
+
+
+def selected_models() -> list[str]:
+    primary = st.session_state.answer_model.strip() or DEFAULT_ANSWER_MODEL
+    comparison = st.session_state.comparison_model.strip()
+    models = [primary]
+    if st.session_state.compare_enabled and comparison and comparison != primary:
+        models.append(comparison)
+    return models
 
 
 def render_documents_tab() -> None:
@@ -127,6 +167,12 @@ def render_chat_tab() -> None:
     st.markdown("#### Chat")
     st.caption(f"{count} {pluralize('document', count)} ready")
 
+    with st.expander("Answer options", expanded=False):
+        st.text_input("Primary model", key="answer_model")
+        st.toggle("Compare two models", key="compare_enabled")
+        if st.session_state.compare_enabled:
+            st.text_input("Comparison model", key="comparison_model")
+
     conversation = st.container()
     with conversation:
         for message in st.session_state.messages:
@@ -145,8 +191,24 @@ def render_chat_tab() -> None:
         render_message(st.session_state.messages[-1])
         with st.chat_message("assistant"), st.spinner("Searching your documents..."):
             try:
-                answer = ask_question(question, history, st.session_state.session_id)
-                reply = {"role": "assistant", "content": answer["answer"], "sources": answer["sources"]}
+                answers = []
+                for model in selected_models():
+                    answer = ask_question(question, history, st.session_state.session_id, model)
+                    answers.append(
+                        {
+                            "model": model,
+                            "answer": answer["answer"],
+                            "sources": answer["sources"],
+                        }
+                    )
+                reply = {
+                    "role": "assistant",
+                    "content": answers[0]["answer"],
+                    "sources": answers[0]["sources"],
+                    "model": answers[0]["model"],
+                }
+                if len(answers) > 1:
+                    reply["comparisons"] = answers
             except BackendError as exc:
                 reply = {"role": "assistant", "content": str(exc), "error": True}
 
@@ -160,13 +222,35 @@ def render_message(message: dict) -> None:
             st.error(message["content"])
             return
 
-        st.markdown(message["content"])
-        if message.get("sources"):
-            render_sources(message["sources"])
+        if message.get("comparisons"):
+            render_comparison(message["comparisons"])
+            return
+
+        render_answer(
+            answer=message["content"],
+            sources=message.get("sources", []),
+            model=message.get("model"),
+        )
 
 
-def render_sources(sources: list[dict]) -> None:
-    with st.expander("Sources", expanded=False):
+def render_comparison(answers: list[dict]) -> None:
+    tabs = st.tabs([answer["model"] for answer in answers])
+    for tab, answer in zip(tabs, answers):
+        with tab:
+            render_answer(answer["answer"], answer["sources"], answer["model"])
+
+
+def render_answer(answer: str, sources: list[dict], model: str | None = None) -> None:
+    if model:
+        st.caption(model)
+    st.markdown(answer)
+    if sources:
+        render_sources(sources, answer)
+        render_artifact(answer, sources, model)
+
+
+def render_sources(sources: list[dict], answer: str) -> None:
+    with st.expander("Highlighted sources", expanded=False):
         for source in sources:
             page = f"Page {source['page']}" if source.get("page") else "No page"
             st.markdown(
@@ -176,11 +260,63 @@ def render_sources(sources: list[dict]) -> None:
                         <span>{escape(source["filename"])}</span>
                         <span>{page}</span>
                     </div>
-                    <div class="source-snippet">{escape(source["text"])}</div>
+                    <div class="source-snippet">{highlight_source(source["text"], answer)}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+
+
+def render_artifact(answer: str, sources: list[dict], model: str | None) -> None:
+    artifact = build_answer_artifact(answer, sources, model)
+    with st.expander("Answer artifact", expanded=False):
+        st.markdown(artifact)
+        st.download_button(
+            "Download markdown",
+            data=artifact,
+            file_name="document-chat-answer.md",
+            mime="text/markdown",
+            use_container_width=True,
+        )
+
+
+def build_answer_artifact(answer: str, sources: list[dict], model: str | None = None) -> str:
+    lines = ["## Answer", "", answer.strip(), ""]
+    if model:
+        lines += [f"Model: `{model}`", ""]
+    lines += ["## Sources"]
+    for index, source in enumerate(sources, start=1):
+        page = f", page {source['page']}" if source.get("page") else ""
+        lines += [
+            "",
+            f"{index}. `{source['filename']}`{page}",
+            "",
+            f"> {source['text']}",
+        ]
+    return "\n".join(lines)
+
+
+def highlight_source(text: str, answer: str) -> str:
+    terms = citation_terms(answer)
+    if not terms:
+        return escape(text)
+
+    html = []
+    for part in re.split(r"(\W+)", text):
+        normalized = part.lower().strip("_")
+        if normalized in terms:
+            html.append(f"<mark>{escape(part)}</mark>")
+        else:
+            html.append(escape(part))
+    return "".join(html)
+
+
+def citation_terms(answer: str) -> set[str]:
+    terms = set()
+    for token in re.findall(r"[A-Za-z0-9]+", answer.lower()):
+        if len(token) >= 4 and token not in HIGHLIGHT_STOP_WORDS:
+            terms.add(token)
+    return terms
 
 
 def apply_page_styles() -> None:
@@ -321,6 +457,13 @@ def apply_page_styles() -> None:
                 color: #cbd5e1;
                 font-size: 0.9rem;
                 line-height: 1.45;
+            }
+
+            .source-snippet mark {
+                background: #f5c542;
+                border-radius: 3px;
+                color: #111827;
+                padding: 0 0.14rem;
             }
 
             @media (max-width: 640px) {

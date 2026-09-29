@@ -40,6 +40,8 @@ class FakeLLM:
         self.rewritten_query = ""  # empty output makes the rewriter fall back to the question
         self.prompts: list[str] = []
         self.rewrite_prompts: list[str] = []
+        self.model = "default-test-model"
+        self.model_overrides: list[str] = []
         self.available = True
 
     def answers(self, answer: str, answerable: bool = True) -> None:
@@ -53,6 +55,11 @@ class FakeLLM:
             return self.rewritten_query
         self.prompts.append(prompt)
         return self.reply
+
+    def with_model(self, model: str) -> "FakeLLM":
+        self.model = model
+        self.model_overrides.append(model)
+        return self
 
 
 @pytest.fixture

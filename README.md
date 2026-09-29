@@ -4,7 +4,7 @@ Upload PDF, TXT or Markdown files and ask questions about them. Answers are grou
 
 > **Prerequisite: Ollama.** The models run in [Ollama](https://ollama.com), not in the app containers. Either install Ollama on the host (option A below, faster) or let Docker run it for you (option B, nothing to install besides Docker).
 
-- **Frontend:** Streamlit (upload, chat, source panels)
+- **Frontend:** Streamlit (upload, chat, highlighted source panels, Markdown answer artifacts, optional model comparison)
 - **Backend:** FastAPI (parsing, chunking, hybrid retrieval, reranking, answer generation)
 - **Models:** Ollama running locally, `llama3.2:3b` for answers and `nomic-embed-text` for embeddings. No API keys.
 
@@ -58,6 +58,8 @@ All have defaults, so nothing is required.
 | `RAG_RERANKER_ENABLED` | `true` | Turn the cross-encoder reranker on or off |
 | `RAG_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Reranker model (Docker build arg as well) |
 | `DOCUMENT_CHAT_API_URL` | `http://localhost:8000` | Backend URL used by the frontend (set automatically in Docker) |
+| `DOCUMENT_CHAT_MODEL` | `llama3.2:3b` | Primary model name shown in the frontend |
+| `DOCUMENT_CHAT_COMPARE_MODEL` | empty | Optional second model prefilled in the comparison UI |
 
 ## Run locally without Docker
 
@@ -149,6 +151,11 @@ The frontend always sends its complete file list, and the backend replaces the s
 3. The cross-encoder rescores the candidates. Chunks scoring far below the best one are dropped, and at most 4 are kept.
 4. The model answers from those chunks only, as a JSON object with an `answerable` flag (see [Refusals](#refusals)). If nothing relevant is retrieved, or the model marks the question as not answerable, the API returns a fixed refusal with no sources.
 
+**Frontend rendering**
+- Source panels highlight words from the answer inside the retrieved passages, so the cited evidence is easier to scan.
+- Each answer also gets a Markdown artifact with the answer, model name and source snippets, plus a download button.
+- The chat options can run the same question against two Ollama models side by side. Retrieval stays identical; only the answer model changes, which makes the comparison easier to explain.
+
 ### Conversation-aware retrieval
 
 Follow-up questions are rewritten as standalone search queries before retrieval. For example, after discussing Marco Stein, "Where did he study?" becomes "Where did Marco Stein study?". A question that starts a new topic should remain unchanged.
@@ -168,6 +175,7 @@ This adds one short model call for questions with conversation history. The fall
 | **Hybrid dense + BM25 with RRF** | Dense search handles paraphrases; BM25 catches exact codes and numbers. RRF needs no score calibration. The table above shows the gain. | Dense only: misses exact identifiers. Weighted score blending: needs tuning because the scores live on different scales. |
 | **Cross-encoder reranker** | It reads question and chunk together, so it ranks better. It also lets the app drop clearly irrelevant chunks. | LLM-based reranking: slower and costlier per query. |
 | **Structured JSON reply for refusals** | Ollama enforces the schema, so a refusal is a boolean, whatever the wording. Refusals went from 7 to 15 of 15 with no wrongly refused questions. | Matching refusal phrases: already failed 7 of 15 times. A second model call to verify the answer: doubles the latency. |
+| **Optional model comparison in the UI** | It keeps one retrieval result and varies only the answer model, which is enough to compare answer quality during the demo. | Full model routing: useful in production, but unnecessary for this local case study. |
 | **Hand-written pipeline** | Every step is a short function I can explain and test. | LangChain/LlamaIndex: faster to start, but more abstraction than this pipeline needs. |
 | **Word-based chunks, page-aware** | Simple, predictable, and gives page-accurate citations. | Semantic or heading-based chunking: better for long structured documents, planned as a next step. |
 
@@ -182,7 +190,7 @@ This adds one short model call for questions with conversation history. The fall
 
 - Persist the index (SQLite or Qdrant) and evict idle sessions.
 - Stream answers token by token.
-- Highlight the cited passage inside the original PDF.
+- Persist uploaded source files and render PDF-native citation overlays, instead of highlighting only the retrieved source snippets.
 - Build an evaluation set from real customer documents and check answer correctness, not only retrieval and refusals.
 - Use structure-aware chunking that follows headings and tables. This would fix the one remaining miss in the large evaluation.
 
