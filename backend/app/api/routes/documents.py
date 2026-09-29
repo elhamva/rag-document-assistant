@@ -12,7 +12,7 @@ router = APIRouter(prefix="/documents")
 
 @router.post("/process", response_model=ProcessDocumentsResponse)
 def process_documents(
-    files: list[UploadFile] = File(...),
+    files: list[UploadFile] = File(default=[]),  # an empty list clears the session
     session_id: str = Form("default"),
     index: DocumentIndex = Depends(get_index),
 ) -> ProcessDocumentsResponse:

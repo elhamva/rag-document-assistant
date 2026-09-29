@@ -12,6 +12,8 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 ARG RAG_RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
 ENV RAG_RERANKER_MODEL=${RAG_RERANKER_MODEL}
 RUN python -c "from sentence_transformers import CrossEncoder; CrossEncoder('${RAG_RERANKER_MODEL}')"
+# The reranker is baked into the image, so runtime never needs the Hugging Face Hub.
+ENV HF_HUB_OFFLINE=1
 
 COPY backend /app/backend
 

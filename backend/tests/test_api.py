@@ -41,6 +41,15 @@ def test_removed_files_leave_the_index(client, index) -> None:
     assert [chunk.filename for chunk in index.chunks("default")] == ["fruit.txt"]
 
 
+def test_empty_file_list_clears_the_session(client, index) -> None:
+    upload(client, ("warranty.txt", WARRANTY_TEXT))
+
+    response = client.post("/documents/process", data={"session_id": "default"})
+
+    assert response.json() == {"documents": []}
+    assert index.chunks("default") == []
+
+
 def test_process_returns_503_when_embeddings_are_unavailable(client, embedder) -> None:
     embedder.available = False
 

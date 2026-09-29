@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Optional, Protocol
 
 from backend.app.schemas.chat import ChatHistoryMessage

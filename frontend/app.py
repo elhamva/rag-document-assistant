@@ -125,12 +125,15 @@ def render_documents_tab() -> None:
         label_visibility="collapsed",
     )
 
+    files = files or []
+    # With no files left, the same request clears the backend index for this session.
+    clearing = not files and bool(st.session_state.documents)
     action_cols = st.columns([3.2, 1.15])
     with action_cols[1]:
         process_clicked = st.button(
-            "Process documents",
+            "Clear documents" if clearing else "Process documents",
             type="primary",
-            disabled=not files,
+            disabled=not files and not clearing,
             use_container_width=True,
         )
 
@@ -139,11 +142,11 @@ def render_documents_tab() -> None:
             try:
                 st.session_state.documents = process_documents(files, st.session_state.session_id)
                 st.session_state.processed_files = file_signature(files)
-                st.toast("Documents processed by backend.")
+                st.toast("Documents cleared." if clearing else "Documents processed by backend.")
             except BackendError as exc:
                 st.error(str(exc))
 
-    render_processing_status(files or [])
+    render_processing_status(files)
 
 
 def render_processing_status(files: list) -> None:

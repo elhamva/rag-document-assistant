@@ -70,7 +70,8 @@ pip install -r requirements-dev.txt
 uvicorn backend.app.main:app --reload            # terminal 1, from the repository root
 cd frontend && streamlit run app.py              # terminal 2, from frontend/ so the theme loads
 ```
- If `sentence-transformers` is not installed, the backend logs a warning and runs without the reranker.
+
+If `sentence-transformers` is not installed, the backend logs a warning and runs without the reranker.
 
 ## Tests and evaluation
 
