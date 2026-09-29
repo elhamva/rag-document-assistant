@@ -1,3 +1,6 @@
+import json
+from typing import Optional
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -32,21 +35,24 @@ class FakeEmbedder:
 
 
 class FakeLLM:
-    def __init__(self, answer: str = "A grounded answer.") -> None:
-        self.answer = answer
+    def __init__(self) -> None:
+        self.reply = json.dumps({"answerable": True, "answer": "A grounded answer."})
         self.rewritten_query = ""  # empty output makes the rewriter fall back to the question
         self.prompts: list[str] = []
         self.rewrite_prompts: list[str] = []
         self.available = True
 
-    def generate(self, prompt: str, timeout: float = 120) -> str:
+    def answers(self, answer: str, answerable: bool = True) -> None:
+        self.reply = json.dumps({"answerable": answerable, "answer": answer})
+
+    def generate(self, prompt: str, timeout: float = 120, json_schema: Optional[dict] = None) -> str:
         if not self.available:
             raise OllamaError("Cannot reach Ollama at http://localhost:11434.")
         if prompt.startswith("Rewrite the current question"):
             self.rewrite_prompts.append(prompt)
             return self.rewritten_query
         self.prompts.append(prompt)
-        return self.answer
+        return self.reply
 
 
 @pytest.fixture

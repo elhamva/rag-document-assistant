@@ -52,7 +52,7 @@ def test_process_returns_503_when_embeddings_are_unavailable(client, embedder) -
 
 def test_chat_answers_from_retrieved_chunks(client, llm) -> None:
     upload(client, ("warranty.txt", WARRANTY_TEXT))
-    llm.answer = "Five years."
+    llm.answers("Five years.")
 
     response = client.post("/chat", json={"question": "How long is the warranty?"})
 
@@ -95,11 +95,20 @@ def test_chat_without_matching_context_does_not_call_the_model(client, llm) -> N
     assert llm.prompts == []
 
 
-def test_model_refusal_hides_sources(client, llm) -> None:
+def test_refusal_in_any_wording_hides_sources(client, llm) -> None:
     upload(client, ("warranty.txt", WARRANTY_TEXT))
-    llm.answer = NO_ANSWER
+    llm.answers("The context does not say what the warranty costs.", answerable=False)
 
     response = client.post("/chat", json={"question": "What does the warranty cost?"})
+
+    assert response.json() == {"answer": NO_ANSWER, "sources": []}
+
+
+def test_malformed_model_reply_is_treated_as_refusal(client, llm) -> None:
+    upload(client, ("warranty.txt", WARRANTY_TEXT))
+    llm.reply = "Five years, I think."
+
+    response = client.post("/chat", json={"question": "How long is the warranty?"})
 
     assert response.json() == {"answer": NO_ANSWER, "sources": []}
 

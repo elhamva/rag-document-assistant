@@ -27,6 +27,16 @@ def test_generate_posts_prompt_to_configured_model(monkeypatch) -> None:
     ]
 
 
+def test_generate_passes_json_schema_as_format(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(httpx, "post", fake_post(calls, httpx.Response(200, json={"response": "{}"})))
+    schema = {"type": "object"}
+
+    OllamaClient().generate("prompt", json_schema=schema)
+
+    assert calls[0][1]["format"] == schema
+
+
 def test_nomic_embeddings_use_task_prefixes_and_batches(monkeypatch) -> None:
     calls = []
 

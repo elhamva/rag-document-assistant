@@ -75,11 +75,16 @@ class DocumentIndex:
         return self.reranker.rerank(query, candidates)[:top_k]
 
 
-def dense_search(chunks: list[Chunk], query_vector: list[float], limit: int) -> list[SearchResult]:
+def dense_search(
+    chunks: list[Chunk],
+    query_vector: list[float],
+    limit: int,
+    min_similarity: float = MIN_DENSE_SIMILARITY,
+) -> list[SearchResult]:
     results = []
     for chunk in chunks:
         score = sum(a * b for a, b in zip(query_vector, chunk.embedding))
-        if score >= MIN_DENSE_SIMILARITY:
+        if score >= min_similarity:
             results.append(SearchResult(chunk, score))
     return sorted(results, key=lambda result: result.score, reverse=True)[:limit]
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 import httpx
 
 from backend.app import config
@@ -24,18 +26,21 @@ class OllamaClient:
         self.embed_model = embed_model
         self._use_prefixes = embed_model.startswith("nomic-embed")
 
-    def generate(self, prompt: str, timeout: float = config.OLLAMA_TIMEOUT_SECONDS) -> str:
-        data = self._post(
-            "/api/generate",
-            {
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-                "options": {"temperature": 0},
-            },
-            timeout,
-        )
-        return data["response"]
+    def generate(
+        self,
+        prompt: str,
+        timeout: float = config.OLLAMA_TIMEOUT_SECONDS,
+        json_schema: Optional[dict] = None,
+    ) -> str:
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0},
+        }
+        if json_schema is not None:
+            payload["format"] = json_schema  # Ollama constrains decoding to this schema
+        return self._post("/api/generate", payload, timeout)["response"]
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         prefix = "search_document: " if self._use_prefixes else ""
