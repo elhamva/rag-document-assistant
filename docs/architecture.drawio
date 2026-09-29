@@ -68,7 +68,7 @@
           <mxGeometry x="1260" y="910" width="280" height="60" as="geometry" />
         </mxCell>
 
-        <mxCell id="ollama" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14" value="&lt;b&gt;Ollama&lt;/b&gt; (host, or container via override file · no API key)&lt;br&gt;nomic-embed-text · /api/embed&amp;nbsp;&amp;nbsp;&amp;nbsp;|&amp;nbsp;&amp;nbsp;&amp;nbsp;llama3.2:3b · /api/generate" vertex="1">
+        <mxCell id="ollama" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14" value="&lt;b&gt;Ollama&lt;/b&gt; (container by default, host optional · no API key)&lt;br&gt;nomic-embed-text · /api/embed&amp;nbsp;&amp;nbsp;&amp;nbsp;|&amp;nbsp;&amp;nbsp;&amp;nbsp;llama3.2:3b · /api/generate" vertex="1">
           <mxGeometry x="480" y="1260" width="1080" height="90" as="geometry" />
         </mxCell>
         <mxCell id="hf" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=12" value="&lt;b&gt;Hugging Face Hub&lt;/b&gt;&lt;br&gt;reranker weights&lt;br&gt;(baked into Docker image)" vertex="1">

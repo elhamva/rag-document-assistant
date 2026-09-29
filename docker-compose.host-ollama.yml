@@ -1,0 +1,12 @@
+# Uses Ollama installed on the host instead of the bundled container, e.g. for GPU speed on a Mac.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up --build
+services:
+  ollama:
+    profiles: ["bundled-ollama"]  # not started unless this profile is enabled
+
+  ollama-pull:
+    profiles: ["bundled-ollama"]
+
+  backend:
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434

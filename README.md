@@ -2,7 +2,7 @@
 
 Upload PDF, TXT or Markdown files and ask questions about them. Answers are grounded in the uploaded documents and show the passages they came from.
 
-> **Prerequisite: Ollama.** The models run in [Ollama](https://ollama.com), not in the app containers. Either install Ollama on the host (option A below, faster) or let Docker run it for you (option B, nothing to install besides Docker).
+> **Only Docker is needed.** `docker compose up --build` starts the frontend, the backend and Ollama, and downloads the models on the first start. No API keys.
 
 - **Frontend:** Streamlit (upload, chat, highlighted source panels, Markdown answer artifacts, optional model comparison)
 - **Backend:** FastAPI (parsing, chunking, hybrid retrieval, reranking, answer generation)
@@ -12,38 +12,37 @@ The architecture diagram is in [`docs/architecture.drawio`](docs/architecture.dr
 
 ## Run with Docker
 
-### Option A: Ollama on the host (recommended)
-
-Uses the host GPU (Apple Silicon or NVIDIA), so answers come back in seconds.
-
-1. Install [Ollama](https://ollama.com) and pull the two models:
-
-   ```bash
-   ollama pull llama3.2:3b
-   ollama pull nomic-embed-text
-   ```
-
-2. Make sure Ollama is running. On **Linux**, Ollama only listens on localhost by default, so containers cannot reach it; start it with `OLLAMA_HOST=0.0.0.0 ollama serve`. On macOS and Windows the desktop app works as is.
-
-3. Start the app:
-
-   ```bash
-   docker compose up --build
-   ```
-
-4. Open http://localhost:8501. A sample document is in `sample_docs/` if you want something to try.
-
-### Option B: everything in Docker
-
-No host install. Ollama runs as a container and pulls both models (about 2.3 GB) into a named volume on the first start, so later starts are quick.
-
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up --build
+docker compose up --build
 ```
 
-The backend waits until the models are downloaded, then the app is available at http://localhost:8501. Docker on macOS cannot use the GPU, so answers are noticeably slower than with option A.
+Then open http://localhost:8501 and upload a document; `sample_docs/brightline_service_handbook.md` is a good one to try.
 
-The first build takes a few minutes because it installs CPU-only PyTorch and downloads the reranker model into the image.
+The first start takes a few minutes: the backend image installs CPU-only PyTorch and the reranker model, and the `ollama-pull` service downloads `llama3.2:3b` and `nomic-embed-text` (about 2.3 GB) into a Docker volume. The backend waits until the download has finished. Later starts reuse the images and the volume and are ready in seconds.
+
+Docker needs about 6 GB of memory. In the bundled container, Ollama runs on the CPU, so the first answer takes up to a minute while the model loads, and later answers take a few seconds.
+
+### Faster: Ollama on the host (optional)
+
+Ollama installed directly on the machine can use the GPU (Apple Silicon or NVIDIA), and answers take about a second. Install [Ollama](https://ollama.com), pull the models, and start the app with the override file, which disables the bundled Ollama:
+
+```bash
+ollama pull llama3.2:3b
+ollama pull nomic-embed-text
+docker compose -f docker-compose.yml -f docker-compose.host-ollama.yml up --build
+```
+
+On **Linux**, Ollama only listens on localhost by default, so containers cannot reach it; start it with `OLLAMA_HOST=0.0.0.0 ollama serve`. On macOS and Windows the desktop app works as is.
+
+### Comparing two models
+
+The chat's **Answer options** can send the same question to a second model. In the bundled setup, only downloaded models can be used, so name the second model at start-up and `ollama-pull` downloads it too. A small model keeps it usable on a CPU:
+
+```bash
+DOCUMENT_CHAT_COMPARE_MODEL=qwen2.5:3b docker compose up --build
+```
+
+A model that has not been downloaded returns a clear error in the chat ("model … not found").
 
 ## Environment variables
 
@@ -51,7 +50,7 @@ All have defaults, so nothing is required.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` (Docker), `http://ollama:11434` (option B), `http://localhost:11434` (local) | Where the backend finds Ollama |
+| `OLLAMA_BASE_URL` | `http://ollama:11434` (Docker), `http://host.docker.internal:11434` (host override), `http://localhost:11434` (local) | Where the backend finds Ollama |
 | `OLLAMA_MODEL` | `llama3.2:3b` | Model that writes the answers |
 | `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model |
 | `RAG_TOP_K` | `4` | Maximum number of chunks passed to the model |
@@ -59,7 +58,7 @@ All have defaults, so nothing is required.
 | `RAG_RERANKER_MODEL` | `cross-encoder/ms-marco-MiniLM-L-6-v2` | Reranker model (Docker build arg as well) |
 | `DOCUMENT_CHAT_API_URL` | `http://localhost:8000` | Backend URL used by the frontend (set automatically in Docker) |
 | `DOCUMENT_CHAT_MODEL` | `llama3.2:3b` | Primary model name shown in the frontend |
-| `DOCUMENT_CHAT_COMPARE_MODEL` | empty | Optional second model prefilled in the comparison UI |
+| `DOCUMENT_CHAT_COMPARE_MODEL` | empty | Optional second model: downloaded at start-up and prefilled in the comparison UI |
 
 ## Run locally without Docker
 
@@ -79,7 +78,7 @@ cd frontend && streamlit run app.py              # terminal 2, from frontend/ so
 pytest                                           # unit and API tests, no Ollama needed
 ```
 
-The evaluation scripts need Ollama and the reranker. The easiest way to run them is inside the backend image, which has both:
+The evaluation scripts need Ollama and the reranker. The easiest way to run them is inside the backend image, which has both; `docker compose run` also starts Ollama. With the bundled CPU Ollama they run several times slower than the numbers below suggest, and `tune_parameters.py` takes the longest because it embeds the 500-page corpus once per chunk size:
 
 ```bash
 docker compose run --rm -v ./sample_docs:/app/sample_docs backend python backend/scripts/evaluate_retrieval.py --large
@@ -169,8 +168,8 @@ This adds one short model call for questions with conversation history. The fall
 | Decision | Why | Rejected |
 | --- | --- | --- |
 | **Streamlit** frontend | Upload, chat and expanders are built in, so time went into retrieval quality instead of UI plumbing. | React/Next.js: nicer UI, but a second language and build toolchain for no gain in this scope. |
-| **Ollama, local models** | No API keys to hand over. Reviewers can run it offline, and documents never leave the machine. | OpenAI/Anthropic APIs: better answers, but they need a key and send documents to a third party. The client is one small class, so swapping is easy. |
-| **Ollama on the host by default, in Docker optionally** | Host Ollama uses the GPU: about 1 s per answer on an Apple Silicon Mac. The optional compose file needs nothing but Docker. | Ollama always in Docker: a one-command start, but on macOS it runs on the CPU, at 5–7 s per answer (15 s for the first). |
+| **Ollama, local models** | No API keys to hand over. After the first start it runs offline, and documents never leave the machine. | OpenAI/Anthropic APIs: better answers, but they need a key and send documents to a third party. The client is one small class, so swapping is easy. |
+| **Ollama in Docker by default, on the host optionally** | The brief asks for a start via Docker on the reviewer's machine, so the default needs nothing but Docker. The trade-off is CPU speed: 2–7 s per answer on a Mac, and up to a minute for the first one. The host override brings back the GPU (about 1 s per answer). | Ollama on the host by default: faster, but the app fails unless the reviewer installs Ollama and pulls the models first. |
 | **In-memory index** | A few documents per session fit in memory. Even at 500 pages (1,073 chunks), brute-force dense search takes 19 ms and BM25 42 ms. | Qdrant/Chroma: persistence and scale this demo does not need, plus another container to run. |
 | **Hybrid dense + BM25 with RRF** | Dense search handles paraphrases; BM25 catches exact codes and numbers. RRF needs no score calibration. The table above shows the gain. | Dense only: misses exact identifiers. Weighted score blending: needs tuning because the scores live on different scales. |
 | **Cross-encoder reranker** | It reads question and chunk together, so it ranks better. It also lets the app drop clearly irrelevant chunks. | LLM-based reranking: slower and costlier per query. |
@@ -183,7 +182,7 @@ This adds one short model call for questions with conversation history. The fall
 
 - The index lives in process memory: restarting the backend clears it, and sessions are never evicted.
 - Scanned PDFs need OCR, which is not included.
-- `llama3.2:3b` is small. It sometimes refuses when the answer requires combining two facts. `OLLAMA_MODEL=qwen2.5:14b` answers better if the machine can run it.
+- `llama3.2:3b` is small. It sometimes refuses when the answer requires combining two facts, or when it is conditional. With the host override and enough memory, `OLLAMA_MODEL=qwen2.5:14b` answers better.
 - If a chat request fails, the next query rewrite may use the last successful exchange rather than the failed turn.
 
 ## What I would do next
@@ -211,5 +210,6 @@ backend/scripts/     Evaluation: retrieval, refusals, parameter sweeps
 frontend/app.py      Streamlit UI
 sample_docs/         Fictional handbook for demos and evaluation
 docs/                Architecture diagram
-docker-compose.ollama.yml  Optional override that runs Ollama in Docker
+docker-compose.yml              Frontend, backend and Ollama
+docker-compose.host-ollama.yml  Optional override that uses Ollama on the host
 ```

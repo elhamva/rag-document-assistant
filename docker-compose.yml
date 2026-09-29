@@ -1,10 +1,40 @@
 services:
+  # Ollama runs as a container so the app needs nothing but Docker.
+  # To use a faster Ollama on the host instead, add docker-compose.host-ollama.yml (see README).
+  ollama:
+    image: ollama/ollama:0.34.4
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Downloads the models into the volume on first start; later starts only check them.
+  ollama-pull:
+    image: ollama/ollama:0.34.4
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      CHAT_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      COMPARE_MODEL: ${DOCUMENT_CHAT_COMPARE_MODEL:-}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        ollama pull "$$CHAT_MODEL" && ollama pull "$$EMBED_MODEL" &&
+        if [ -n "$$COMPARE_MODEL" ]; then ollama pull "$$COMPARE_MODEL"; fi
+    depends_on:
+      ollama:
+        condition: service_healthy
+
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
       RAG_TOP_K: ${RAG_TOP_K:-4}
@@ -13,6 +43,10 @@ services:
       - "8000:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      ollama-pull:
+        condition: service_completed_successfully
+        required: false  # skipped when docker-compose.host-ollama.yml disables the bundled Ollama
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
       interval: 10s
@@ -32,3 +66,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+volumes:
+  ollama-models:
