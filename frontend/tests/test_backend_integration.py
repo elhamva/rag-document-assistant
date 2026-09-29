@@ -122,6 +122,7 @@ def test_highlight_source_marks_answer_terms() -> None:
     assert "<mark>Shipping</mark>" in html
     assert "<mark>free</mark>" in html
     assert "<mark>euros</mark>" in html
+    assert "<mark>1</mark>,<mark>500</mark>" in html
 
 
 def test_answer_artifact_contains_answer_model_and_sources() -> None:

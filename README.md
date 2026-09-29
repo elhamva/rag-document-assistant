@@ -154,7 +154,7 @@ The frontend always sends its complete file list, and the backend replaces the s
 **Frontend rendering**
 - Source panels highlight words from the answer inside the retrieved passages, so the cited evidence is easier to scan.
 - Each answer also gets a Markdown artifact with the answer, model name and source snippets, plus a download button.
-- The chat options can run the same question against two Ollama models side by side. Retrieval stays identical; only the answer model changes, which makes the comparison easier to explain.
+- The chat options can run the same question against two Ollama models side by side. Retrieval stays identical, so only the answer changes. The one exception is a follow-up question, where the selected model also rewrites the search query.
 
 ### Conversation-aware retrieval
 

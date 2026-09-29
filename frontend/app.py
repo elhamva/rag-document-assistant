@@ -314,7 +314,8 @@ def highlight_source(text: str, answer: str) -> str:
 def citation_terms(answer: str) -> set[str]:
     terms = set()
     for token in re.findall(r"[A-Za-z0-9]+", answer.lower()):
-        if len(token) >= 4 and token not in HIGHLIGHT_STOP_WORDS:
+        # Numbers are usually the fact that was asked for, so keep them even when short ("45", "1,500").
+        if (len(token) >= 4 or any(char.isdigit() for char in token)) and token not in HIGHLIGHT_STOP_WORDS:
             terms.add(token)
     return terms
 
